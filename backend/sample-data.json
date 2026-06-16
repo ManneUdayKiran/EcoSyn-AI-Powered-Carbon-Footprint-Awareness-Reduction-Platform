@@ -1,0 +1,173 @@
+{
+  "profile": {
+    "studentName": "Eco Warrior",
+    "sustainabilityScore": 72,
+    "ecoPoints": 450,
+    "level": 2,
+    "levelProgress": 60,
+    "monthlyFootprint": 152.4,
+    "predictedFootprintBAU": 168.0,
+    "predictedFootprintEco": 112.5,
+    "savingsCO2": 15.0,
+    "savingsCost": 45.0,
+    "acceptedRecommendations": [],
+    "completedChallenges": [],
+    "badges": ["Energy Saver", "Plant Eater"]
+  },
+  "activities": [
+    {
+      "id": "act-1",
+      "category": "Electricity",
+      "description": "Monthly Utility Bill - May 2026",
+      "amount": "380 kWh",
+      "carbon": 140.2,
+      "cost": 85.0,
+      "date": "2026-05-31"
+    },
+    {
+      "id": "act-2",
+      "category": "Transport",
+      "description": "Solo Car Commute",
+      "amount": "120 km",
+      "carbon": 31.2,
+      "cost": 15.0,
+      "date": "2026-06-12"
+    },
+    {
+      "id": "act-3",
+      "category": "Food",
+      "description": "Steak Dinner (Beef)",
+      "amount": "2 meals",
+      "carbon": 12.5,
+      "cost": 32.0,
+      "date": "2026-06-14"
+    },
+    {
+      "id": "act-4",
+      "category": "Shopping",
+      "description": "Fast Fashion Clothes Shopping",
+      "amount": "3 items",
+      "carbon": 22.0,
+      "cost": 45.0,
+      "date": "2026-06-10"
+    },
+    {
+      "id": "act-5",
+      "category": "Lifestyle",
+      "description": "Hot Shower (Extended)",
+      "amount": "40 mins",
+      "carbon": 6.8,
+      "cost": 4.5,
+      "date": "2026-06-15"
+    }
+  ],
+  "recommendations": [
+    {
+      "id": "rec-1",
+      "title": "Public Transit Commuting",
+      "description": "Replace 2 cab rides or drive trips per week with the subway or bus system.",
+      "co2Reduction": 24.5,
+      "costSavings": 32.0,
+      "difficulty": "Easy",
+      "points": 80,
+      "category": "Transport"
+    },
+    {
+      "id": "rec-2",
+      "title": "Meatless Mondays",
+      "description": "Swap animal products with plant-based alternatives for one day every week.",
+      "co2Reduction": 12.0,
+      "costSavings": 15.5,
+      "difficulty": "Easy",
+      "points": 50,
+      "category": "Food"
+    },
+    {
+      "id": "rec-3",
+      "title": "Unplug Vampire Electronics",
+      "description": "Unplug chargers and television consoles when away or during sleep.",
+      "co2Reduction": 4.8,
+      "costSavings": 8.0,
+      "difficulty": "Easy",
+      "points": 30,
+      "category": "Electricity"
+    },
+    {
+      "id": "rec-4",
+      "title": "Switch to LED Bulbs",
+      "description": "Replace remaining incandescent lighting with smart LED energy-efficient bulbs.",
+      "co2Reduction": 18.2,
+      "costSavings": 22.0,
+      "difficulty": "Easy",
+      "points": 60,
+      "category": "Electricity"
+    },
+    {
+      "id": "rec-5",
+      "title": "Buy Pre-owned Clothes",
+      "description": "Purchase secondhand apparel or participate in thrift clothes trades.",
+      "co2Reduction": 16.5,
+      "costSavings": 40.0,
+      "difficulty": "Medium",
+      "points": 70,
+      "category": "Shopping"
+    }
+  ],
+  "challenges": [
+    {
+      "id": "ch-1",
+      "title": "Meatless Monday",
+      "description": "Eat vegetarian meals only for a day to reduce methane emissions.",
+      "category": "Food",
+      "points": 50,
+      "difficulty": "Easy",
+      "progress": 0,
+      "target": 1,
+      "unit": "day",
+      "completed": false
+    },
+    {
+      "id": "ch-2",
+      "title": "Transit Hero",
+      "description": "Commute using bus, train, or bicycle instead of solo driving.",
+      "category": "Transport",
+      "points": 100,
+      "difficulty": "Medium",
+      "progress": 1,
+      "target": 3,
+      "unit": "trips",
+      "completed": false
+    },
+    {
+      "id": "ch-3",
+      "title": "Vampire Power Slayer",
+      "description": "Turn off and unplug unused appliances and power strips at night.",
+      "category": "Electricity",
+      "points": 60,
+      "difficulty": "Easy",
+      "progress": 3,
+      "target": 5,
+      "unit": "nights",
+      "completed": false
+    },
+    {
+      "id": "ch-4",
+      "title": "Zero-Waste Grocery Shop",
+      "description": "Buy grocery items in bulk using your own reusable jars/bags.",
+      "category": "Shopping",
+      "points": 80,
+      "difficulty": "Medium",
+      "progress": 0,
+      "target": 1,
+      "unit": "trip",
+      "completed": false
+    }
+  ],
+  "leaderboard": [
+    { "name": "Clara S.", "level": 5, "points": 1120, "isCurrentUser": false },
+    { "name": "Marcus Aurelius", "level": 4, "points": 890, "isCurrentUser": false },
+    { "name": "Eco Warrior (You)", "level": 2, "points": 450, "isCurrentUser": true },
+    { "name": "Aisha M.", "level": 2, "points": 390, "isCurrentUser": false },
+    { "name": "Tom B.", "level": 1, "points": 210, "isCurrentUser": false }
+  ]
+}
