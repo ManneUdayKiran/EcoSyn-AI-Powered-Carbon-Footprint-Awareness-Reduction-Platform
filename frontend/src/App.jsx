@@ -40,7 +40,7 @@ import CarbonTwin from "./components/CarbonTwin";
 import AICoach from "./components/AICoach";
 import EcoChallenges from "./components/EcoChallenges";
 import ActivityLog from "./components/ActivityLog";
-import { api } from "./api/client";
+import { api, API_BASE_URL } from "./api/client";
 
 const drawerWidth = 260;
 
@@ -305,32 +305,73 @@ export default function App() {
   const [profile, setProfile] = useState(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackbarSeverity, setSnackbarSeverity] = useState("success");
 
   const fetchProfile = async () => {
     try {
       const res = await api.get("/api/profile");
       setProfile(res.data);
-    } catch (e) {
-      console.error("Error loading profile", e);
+    } catch (error) {
+      console.error("Error loading profile", error);
     }
   };
 
   useEffect(() => {
-    fetchProfile();
+    const initialLoad = setTimeout(fetchProfile, 0);
     // Poll profile every 3 seconds to keep UI in sync during complex actions
     const interval = setInterval(fetchProfile, 3000);
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(initialLoad);
+      clearInterval(interval);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!window.EventSource) return undefined;
+
+    const streamUrl = `${API_BASE_URL.replace(/\/$/, "")}/api/events`;
+    const stream = new EventSource(streamUrl);
+
+    stream.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === "connected") return;
+
+        if (data.payload?.profile) {
+          setProfile(data.payload.profile);
+        } else {
+          fetchProfile();
+        }
+
+        if (data.payload?.message) {
+          setSnackbarSeverity(data.type.includes("reset") ? "info" : "success");
+          setSnackbarMessage(data.payload.message);
+          setSnackbarOpen(true);
+        }
+      } catch (error) {
+        console.error("Realtime event parsing failed", error);
+      }
+    };
+
+    stream.onerror = () => {
+      stream.close();
+    };
+
+    return () => stream.close();
   }, []);
 
   const handleReset = async () => {
     try {
       await api.post("/api/profile/reset");
+      setSnackbarSeverity("info");
       setSnackbarMessage("Demo flow successfully reset!");
       setSnackbarOpen(true);
       fetchProfile();
       // Redirect to home if needed
       window.location.href = "/";
-    } catch (e) {
+    } catch (error) {
+      console.error("Reset failed", error);
+      setSnackbarSeverity("error");
       setSnackbarMessage("Failed to reset demo flow.");
       setSnackbarOpen(true);
     }
@@ -345,7 +386,7 @@ export default function App() {
         onClose={() => setSnackbarOpen(false)}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
       >
-        <Alert severity="success" sx={{ width: "100%" }}>
+        <Alert severity={snackbarSeverity} sx={{ width: "100%" }}>
           {snackbarMessage}
         </Alert>
       </Snackbar>

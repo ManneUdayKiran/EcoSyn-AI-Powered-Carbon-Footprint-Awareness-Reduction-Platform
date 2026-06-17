@@ -10,6 +10,9 @@ import {
   Button,
   Chip,
   Alert,
+  TextField,
+  Stack,
+  Divider,
 } from "@mui/material";
 import DirectionsCarRoundedIcon from "@mui/icons-material/DirectionsCarRounded";
 import RestaurantRoundedIcon from "@mui/icons-material/RestaurantRounded";
@@ -29,17 +32,23 @@ export default function CarbonTwin() {
   const [shoppingItems, setShoppingItems] = useState(3); // fast-fashion items per month
 
   const [synced, setSynced] = useState(false);
+  const [scenarioName, setScenarioName] = useState("My lower-carbon month");
+  const [scenarios, setScenarios] = useState([]);
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchTwinData = async () => {
       try {
-        const res = await api.get("/api/profile");
-        setProfile(res.data);
+        const [profileRes, scenariosRes] = await Promise.all([
+          api.get("/api/profile"),
+          api.get("/api/twin/scenarios"),
+        ]);
+        setProfile(profileRes.data);
+        setScenarios(scenariosRes.data);
       } catch (e) {
-        console.error("Error loading profile", e);
+        console.error("Error loading carbon twin data", e);
       }
     };
-    fetchProfile();
+    fetchTwinData();
   }, []);
 
   // Compute live calculations
@@ -55,7 +64,7 @@ export default function CarbonTwin() {
     const shoppingFootprint = Math.round(shoppingItems * 7.2);
     
     const totalProjected = carFootprint + foodFootprint + electricityFootprint + shoppingFootprint;
-    const baseLine = 168.0; // Current BAU projection
+    const baseLine = profile?.predictedFootprintBAU || 168.0;
     const carbonSaved = Math.max(0, Number((baseLine - totalProjected).toFixed(1)));
     const costSaved = Math.max(0, Math.round(carbonSaved * 0.35 + (thermostat * 4.5))); // approx financial index
 
@@ -68,7 +77,7 @@ export default function CarbonTwin() {
       carbonSaved,
       costSaved,
     };
-  }, [carKm, meatMeals, thermostat, shoppingItems]);
+  }, [carKm, meatMeals, thermostat, shoppingItems, profile]);
 
   // Determine twin health color based on carbon emissions
   const twinColor = useMemo(() => {
@@ -78,10 +87,27 @@ export default function CarbonTwin() {
     return "#ef4444"; // Danger Red
   }, [calculations.totalProjected]);
 
-  const handleSync = () => {
+  const handleSync = async () => {
     setSynced(true);
-    // Simulate updating profile savings in the database
-    setTimeout(() => setSynced(false), 3000);
+    try {
+      const res = await api.post("/api/twin/scenarios", {
+        name: scenarioName,
+        variables: {
+          carKm,
+          meatMeals,
+          thermostat,
+          shoppingItems,
+        },
+        calculations,
+      });
+      setProfile(res.data.profile);
+      const scenariosRes = await api.get("/api/twin/scenarios");
+      setScenarios(scenariosRes.data);
+    } catch (e) {
+      console.error("Error saving twin scenario", e);
+    } finally {
+      setTimeout(() => setSynced(false), 1200);
+    }
   };
 
   return (
@@ -203,16 +229,24 @@ export default function CarbonTwin() {
               </Typography>
             </Box>
 
-            <Button
-              fullWidth
-              variant="contained"
-              color="primary"
-              onClick={handleSync}
-              disabled={synced}
-              sx={{ py: 1.5 }}
-            >
-              {synced ? "Syncing variables with profile..." : "Sync Lifestyle with Carbon Twin"}
-            </Button>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+              <TextField
+                fullWidth
+                label="Scenario name"
+                value={scenarioName}
+                onChange={(e) => setScenarioName(e.target.value)}
+                size="small"
+              />
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleSync}
+                disabled={synced}
+                sx={{ py: 1.5, px: 3, whiteSpace: "nowrap" }}
+              >
+                {synced ? "Saving..." : "Save Twin Scenario"}
+              </Button>
+            </Stack>
           </Paper>
         </Grid>
 
@@ -323,6 +357,41 @@ export default function CarbonTwin() {
                   Critical footprint height. Highly recommended to switch to plant meal days or carpooling.
                 </Alert>
               )}
+            </Box>
+
+            <Divider sx={{ my: 3, borderColor: "rgba(255,255,255,0.06)" }} />
+
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 800, mb: 1 }}>
+                Saved Scenarios
+              </Typography>
+              <Stack spacing={1.25}>
+                {scenarios.slice(0, 3).map((scenario) => (
+                  <Card key={scenario.id} sx={{ bgcolor: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.04)" }}>
+                    <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
+                      <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}>
+                        <Typography variant="caption" sx={{ fontWeight: 800, color: "#f8fafc" }}>
+                          {scenario.name}
+                        </Typography>
+                        <Chip
+                          label={`${scenario.calculations?.totalProjected || 0} kg/mo`}
+                          size="small"
+                          color="primary"
+                          sx={{ height: 20, fontSize: "0.65rem", fontWeight: 700 }}
+                        />
+                      </Box>
+                      <Typography variant="caption" color="text.secondary">
+                        Saves {scenario.calculations?.carbonSaved || 0} kg CO2 and ${scenario.calculations?.costSaved || 0}/mo
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                ))}
+                {scenarios.length === 0 && (
+                  <Typography variant="caption" color="text.secondary">
+                    Save a scenario to build your personal carbon playbook.
+                  </Typography>
+                )}
+              </Stack>
             </Box>
           </Paper>
         </Grid>

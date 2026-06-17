@@ -20,6 +20,42 @@ const upload = multer({ storage: multer.memoryStorage() });
 const hasGroqKey = Boolean(process.env.GROQ_API_KEY);
 const groqClient = hasGroqKey ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : null;
 
+const eventClients = new Set();
+const emitRealtimeEvent = (type, payload = {}) => {
+  const event = {
+    type,
+    payload,
+    timestamp: new Date().toISOString()
+  };
+
+  for (const client of eventClients) {
+    client.write(`data: ${JSON.stringify(event)}\n\n`);
+  }
+};
+
+const EMISSION_FACTORS = {
+  Transport: {
+    carKm: 0.26,
+    busKm: 0.089,
+    trainKm: 0.041
+  },
+  Food: {
+    beefMeal: 6.2,
+    vegetarianMeal: 1.4,
+    dairyServing: 1.9
+  },
+  Electricity: {
+    kWh: 0.393
+  },
+  Shopping: {
+    fastFashionItem: 7.2,
+    secondhandItem: 1.4
+  },
+  Lifestyle: {
+    hotShowerMinute: 0.15
+  }
+};
+
 // Database Connection & Memory Fallback State
 let isMongoConnected = false;
 mongoose
@@ -53,7 +89,8 @@ let sampleData = {
   activities: [],
   recommendations: [],
   challenges: [],
-  leaderboard: []
+  leaderboard: [],
+  twinScenarios: []
 };
 
 try {
@@ -69,6 +106,7 @@ let memoryActivities = JSON.parse(JSON.stringify(sampleData.activities));
 let memoryRecommendations = JSON.parse(JSON.stringify(sampleData.recommendations));
 let memoryChallenges = JSON.parse(JSON.stringify(sampleData.challenges));
 let memoryLeaderboard = JSON.parse(JSON.stringify(sampleData.leaderboard));
+let memoryTwinScenarios = JSON.parse(JSON.stringify(sampleData.twinScenarios || []));
 
 // MongoDB Schemas
 const ProfileSchema = new mongoose.Schema({
@@ -84,7 +122,14 @@ const ProfileSchema = new mongoose.Schema({
   savingsCost: { type: Number, default: 45.0 },
   acceptedRecommendations: [String],
   completedChallenges: [String],
-  badges: [String]
+  badges: [String],
+  twinScenarios: [{
+    id: String,
+    name: String,
+    variables: mongoose.Schema.Types.Mixed,
+    calculations: mongoose.Schema.Types.Mixed,
+    createdAt: String
+  }]
 }, { timestamps: true });
 
 const Profile = mongoose.model("Profile", ProfileSchema);
@@ -132,6 +177,20 @@ const safeJsonParse = (payload, fallback) => {
   }
 };
 
+const summarizeActivities = (activities = []) => {
+  const totals = activities.reduce((acc, activity) => {
+    const category = activity.category || "Lifestyle";
+    acc[category] = (acc[category] || 0) + Number(activity.carbon || 0);
+    return acc;
+  }, {});
+  const topCategory = Object.entries(totals).sort((a, b) => b[1] - a[1])[0]?.[0] || "Lifestyle";
+  return {
+    count: activities.length,
+    topCategory,
+    totals
+  };
+};
+
 // Database Operations Wrappers (Mongo with Memory Fallback)
 async function getProfile() {
   if (isMongoConnected) {
@@ -158,6 +217,39 @@ async function saveProfile(prof) {
     }
   }
   memoryProfile = prof;
+}
+
+async function getTwinScenarios() {
+  const profile = await getProfile();
+  return profile.twinScenarios?.length ? profile.twinScenarios : memoryTwinScenarios;
+}
+
+async function saveTwinScenario(scenario) {
+  const profile = await getProfile();
+  const nextScenario = {
+    id: scenario.id || `scenario-${Date.now()}`,
+    name: scenario.name || `Scenario ${new Date().toLocaleDateString()}`,
+    variables: scenario.variables || {},
+    calculations: scenario.calculations || {},
+    createdAt: scenario.createdAt || new Date().toISOString()
+  };
+
+  const currentScenarios = profile.twinScenarios?.length ? profile.twinScenarios : memoryTwinScenarios;
+  const nextScenarios = [nextScenario, ...currentScenarios].slice(0, 8);
+  profile.twinScenarios = nextScenarios;
+
+  if (Number.isFinite(Number(nextScenario.calculations?.carbonSaved))) {
+    profile.savingsCO2 = Number(Math.max(profile.savingsCO2, Number(nextScenario.calculations.carbonSaved)).toFixed(1));
+  }
+  if (Number.isFinite(Number(nextScenario.calculations?.costSaved))) {
+    profile.savingsCost = Number(Math.max(profile.savingsCost, Number(nextScenario.calculations.costSaved)).toFixed(1));
+  }
+  profile.predictedFootprintEco = Number((profile.predictedFootprintBAU - profile.savingsCO2).toFixed(1));
+
+  checkLevelUp(profile, 10);
+  await saveProfile(profile);
+  memoryTwinScenarios = nextScenarios;
+  return { scenario: nextScenario, profile };
 }
 
 async function getActivities() {
@@ -241,9 +333,29 @@ function checkLevelUp(profile, pointsGained) {
 
 // REST API Endpoints
 
+// Real-time event stream for live dashboard updates
+app.get("/api/events", (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders?.();
+
+  eventClients.add(res);
+  res.write(`data: ${JSON.stringify({ type: "connected", payload: { status: "live" }, timestamp: new Date().toISOString() })}\n\n`);
+
+  req.on("close", () => {
+    eventClients.delete(res);
+  });
+});
+
 // 1. Health Status
 app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", hasGroqKey, database: isMongoConnected ? "mongodb" : "memory" });
+  res.json({
+    status: "ok",
+    hasGroqKey,
+    database: isMongoConnected ? "mongodb" : "memory",
+    realtimeClients: eventClients.size
+  });
 });
 
 // 2. Fetch User Profile
@@ -272,6 +384,7 @@ app.post("/api/profile/reset", async (req, res) => {
       console.warn("Error resetting MongoDB collections. Using memory reset.");
     }
   }
+  emitRealtimeEvent("profile.reset", { message: "Demo flow reset to seed data." });
   res.json({ status: "reset", profile: memoryProfile });
 });
 
@@ -279,6 +392,11 @@ app.post("/api/profile/reset", async (req, res) => {
 app.get("/api/activities", async (req, res) => {
   const list = await getActivities();
   res.json(list);
+});
+
+// 4b. Emission factors used by UI calculators and manual estimates
+app.get("/api/emission-factors", (req, res) => {
+  res.json(EMISSION_FACTORS);
 });
 
 // 5. Log Custom Activity Manually
@@ -312,12 +430,66 @@ app.post("/api/activities/log", async (req, res) => {
   checkLevelUp(profile, 15);
   await saveProfile(profile);
 
+  emitRealtimeEvent("activity.logged", {
+    message: `${activity.description} logged. +15 EcoPoints.`,
+    activity,
+    profile
+  });
   res.json({ status: "logged", activity, profile });
 });
 
 // 6. Get Recommendations
 app.get("/api/recommendations", async (req, res) => {
   res.json(memoryRecommendations);
+});
+
+// 6b. Suggested challenge focus based on the user's largest recent footprint category
+app.get("/api/challenges/suggested", async (req, res) => {
+  const activities = await getActivities();
+  const totals = activities.reduce((acc, activity) => {
+    acc[activity.category] = (acc[activity.category] || 0) + Number(activity.carbon || 0);
+    return acc;
+  }, {});
+  const topCategory = Object.entries(totals).sort((a, b) => b[1] - a[1])[0]?.[0] || "Transport";
+
+  const suggestions = {
+    Electricity: {
+      title: "Smart Power Sprint",
+      description: "Cut peak-hour power use and unplug standby devices for three evenings.",
+      category: "Electricity",
+      estimatedCO2: 8.5
+    },
+    Transport: {
+      title: "Two-Day Transit Swap",
+      description: "Replace two solo car trips with transit, cycling, walking, or carpooling.",
+      category: "Transport",
+      estimatedCO2: 11.0
+    },
+    Food: {
+      title: "Low-Carbon Plate Week",
+      description: "Swap two beef-heavy meals for legumes, chicken, or plant-based meals.",
+      category: "Food",
+      estimatedCO2: 9.6
+    },
+    Shopping: {
+      title: "Secondhand First",
+      description: "Buy one planned item used, repaired, borrowed, or skipped entirely.",
+      category: "Shopping",
+      estimatedCO2: 5.8
+    },
+    Lifestyle: {
+      title: "Short Shower Streak",
+      description: "Keep showers below 8 minutes for five days.",
+      category: "Lifestyle",
+      estimatedCO2: 3.2
+    }
+  };
+
+  res.json({
+    topCategory,
+    categoryTotals: totals,
+    suggestion: suggestions[topCategory] || suggestions.Transport
+  });
 });
 
 // 7. Accept Recommendation
@@ -349,7 +521,33 @@ app.post("/api/profile/accept-recommendation", async (req, res) => {
   checkLevelUp(profile, pts);
 
   await saveProfile(profile);
+  emitRealtimeEvent("recommendation.accepted", {
+    message: `${rec?.title || "Recommendation"} accepted. +${pts} EcoPoints.`,
+    recommendation: rec,
+    profile
+  });
   res.json({ status: "accepted", profile, recommendation: rec });
+});
+
+// 7b. Carbon Twin saved scenarios
+app.get("/api/twin/scenarios", async (req, res) => {
+  const scenarios = await getTwinScenarios();
+  res.json(scenarios);
+});
+
+app.post("/api/twin/scenarios", async (req, res) => {
+  const { name, variables, calculations } = req.body;
+  if (!variables || !calculations) {
+    return res.status(400).json({ error: "variables and calculations are required." });
+  }
+
+  const saved = await saveTwinScenario({ name, variables, calculations });
+  emitRealtimeEvent("twin.synced", {
+    message: `${saved.scenario.name} saved to your Carbon Twin. +10 EcoPoints.`,
+    scenario: saved.scenario,
+    profile: saved.profile
+  });
+  res.json({ status: "saved", ...saved });
 });
 
 // 8. Fetch Eco Challenges
@@ -405,6 +603,12 @@ app.post("/api/challenges/complete", async (req, res) => {
   }
 
   await saveProfile(profile);
+  emitRealtimeEvent("challenge.progressed", {
+    message: completedNow ? `${chal.title} completed!` : `${chal.title} progress checked in. +5 EcoPoints.`,
+    challenge: chal,
+    profile,
+    completedNow
+  });
   res.json({ status: "progressed", challenge: chal, profile, completedNow });
 });
 
@@ -435,11 +639,15 @@ app.post("/api/scan", upload.single("file"), async (req, res) => {
   let extractedText = "Mock receipt content";
 
   if (req.file && req.file.mimetype === "application/pdf") {
+    let parser;
     try {
-      // Stub PDF parsing or simple extraction
-      extractedText = `PDF file parse: ${filename}`;
+      parser = new PDFParse({ data: req.file.buffer });
+      const result = await parser.getText();
+      extractedText = result?.text?.slice(0, 8000) || `PDF file parse: ${filename}`;
     } catch (e) {
       extractedText = `File analysis fallback: ${filename}`;
+    } finally {
+      await parser?.destroy?.();
     }
   } else if (req.file) {
     extractedText = `Uploaded image/document details: Name: ${filename}, Size: ${req.file.size} bytes`;
@@ -519,6 +727,11 @@ app.post("/api/scan", upload.single("file"), async (req, res) => {
     }
 
     await saveProfile(profile);
+    emitRealtimeEvent("scan.completed", {
+      message: `${simulatedResult.title} scanned and logged. +25 EcoPoints.`,
+      result: simulatedResult,
+      profile
+    });
     return res.json(simulatedResult);
   }
 
@@ -593,6 +806,11 @@ Return ONLY a valid JSON object matching this schema:
     }
 
     await saveProfile(profile);
+    emitRealtimeEvent("scan.completed", {
+      message: `${result.title || "Receipt"} scanned and logged. +25 EcoPoints.`,
+      result,
+      profile
+    });
     res.json(result);
 
   } catch (error) {
@@ -681,6 +899,11 @@ app.post("/api/vision", upload.single("file"), async (req, res) => {
     }
 
     await saveProfile(profile);
+    emitRealtimeEvent("vision.completed", {
+      message: `${simulatedResult.objectName} assessed and logged. +20 EcoPoints.`,
+      result: simulatedResult,
+      profile
+    });
     return res.json(simulatedResult);
   }
 
@@ -768,6 +991,11 @@ Return ONLY a valid JSON object matching this schema:
     }
 
     await saveProfile(profile);
+    emitRealtimeEvent("vision.completed", {
+      message: `${result.objectName || "Object"} assessed and logged. +20 EcoPoints.`,
+      result,
+      profile
+    });
     res.json(result);
 
   } catch (error) {
@@ -784,6 +1012,8 @@ app.post("/api/coach/chat", async (req, res) => {
   }
 
   const profile = await getProfile();
+  const activities = await getActivities();
+  const activitySummary = summarizeActivities(activities);
 
   if (!hasGroqKey) {
     const defaultReplies = [
@@ -807,7 +1037,10 @@ Use user statistics in your replies:
 - Current Footprint: ${profile.monthlyFootprint} kg CO2/month
 - Sustainability Score: ${profile.sustainabilityScore}/100
 - EcoPoints: ${profile.ecoPoints} (Level ${profile.level})
-- Total Carbon Savings: ${profile.savingsCO2} kg CO2`;
+- Total Carbon Savings: ${profile.savingsCO2} kg CO2
+- Logged Activities: ${activitySummary.count}
+- Largest Footprint Category: ${activitySummary.topCategory}
+- Category Totals: ${JSON.stringify(activitySummary.totals)}`;
 
     const completion = await groqClient.chat.completions.create({
       model: "llama-3.3-70b-versatile",

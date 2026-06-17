@@ -501,7 +501,7 @@ export default function Dashboard() {
               Badges earned through active ecological initiatives
             </Typography>
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
-              {safeProfile.badges.map((badge, idx) => (
+              {safeProfile.badges.map((badge) => (
                 <Box
                   key={badge}
                   sx={{

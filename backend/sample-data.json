@@ -169,5 +169,27 @@
     { "name": "Eco Warrior (You)", "level": 2, "points": 450, "isCurrentUser": true },
     { "name": "Aisha M.", "level": 2, "points": 390, "isCurrentUser": false },
     { "name": "Tom B.", "level": 1, "points": 210, "isCurrentUser": false }
+  ],
+  "twinScenarios": [
+    {
+      "id": "scenario-seed-1",
+      "name": "Transit + Plant Meal Plan",
+      "variables": {
+        "carKm": 20,
+        "meatMeals": 2,
+        "thermostat": 2,
+        "shoppingItems": 1
+      },
+      "calculations": {
+        "carFootprint": 22,
+        "foodFootprint": 53,
+        "electricityFootprint": 107,
+        "shoppingFootprint": 7,
+        "totalProjected": 189,
+        "carbonSaved": 0,
+        "costSaved": 9
+      },
+      "createdAt": "2026-06-16T00:00:00.000Z"
+    }
   ]
 }

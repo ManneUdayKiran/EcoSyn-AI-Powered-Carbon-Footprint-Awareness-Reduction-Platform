@@ -32,6 +32,7 @@ export default function EcoChallenges() {
   const [profile, setProfile] = useState(null);
   const [challenges, setChallenges] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
+  const [suggested, setSuggested] = useState(null);
   const [alert, setAlert] = useState(null);
   const [levelupOpen, setLevelupOpen] = useState(false);
   const [levelupMsg, setLevelupMsg] = useState("");
@@ -41,18 +42,23 @@ export default function EcoChallenges() {
       const profRes = await api.get("/api/profile");
       const chalRes = await api.get("/api/challenges");
       const leadRes = await api.get("/api/leaderboard");
+      const suggestedRes = await api.get("/api/challenges/suggested");
       setProfile(profRes.data);
       setChallenges(chalRes.data);
       setLeaderboard(leadRes.data);
+      setSuggested(suggestedRes.data);
     } catch (e) {
       console.error("Error fetching challenges data", e);
     }
   };
 
   useEffect(() => {
-    fetchData();
+    const initialLoad = setTimeout(fetchData, 0);
     const interval = setInterval(fetchData, 3000);
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(initialLoad);
+      clearInterval(interval);
+    };
   }, []);
 
   const handleCheckIn = async (challengeId) => {
@@ -84,7 +90,8 @@ export default function EcoChallenges() {
         });
       }
       fetchData();
-    } catch (e) {
+    } catch (error) {
+      console.error("Error registering challenge progress", error);
       setAlert({ severity: "error", message: "Error registering progress check-in." });
     }
   };
@@ -127,6 +134,27 @@ export default function EcoChallenges() {
       <Grid container spacing={3}>
         {/* Left Column: Weekly challenges */}
         <Grid item xs={12} md={7}>
+          {suggested?.suggestion && (
+            <Paper
+              sx={{
+                p: 2.5,
+                mb: 2.5,
+                borderRadius: 2,
+                backgroundColor: "rgba(16, 185, 129, 0.05)",
+                border: "1px solid rgba(16, 185, 129, 0.18)",
+              }}
+            >
+              <Typography variant="body2" sx={{ fontWeight: 800, color: "primary.main", mb: 0.5 }}>
+                Smart Mission Focus: {suggested.topCategory}
+              </Typography>
+              <Typography variant="body2" sx={{ fontWeight: 700, color: "#f8fafc" }}>
+                {suggested.suggestion.title}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {suggested.suggestion.description} Estimated impact: -{suggested.suggestion.estimatedCO2} kg CO2.
+              </Typography>
+            </Paper>
+          )}
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 2.5 }}>
             Active Weekly Missions
           </Typography>

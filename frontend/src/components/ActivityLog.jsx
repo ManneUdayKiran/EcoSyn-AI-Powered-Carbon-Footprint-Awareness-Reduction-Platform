@@ -71,9 +71,12 @@ export default function ActivityLog() {
   };
 
   useEffect(() => {
-    fetchActivities();
+    const initialLoad = setTimeout(fetchActivities, 0);
     const interval = setInterval(fetchActivities, 3000);
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(initialLoad);
+      clearInterval(interval);
+    };
   }, []);
 
   const handleOpenDialog = () => {
@@ -144,7 +147,8 @@ export default function ActivityLog() {
       setAlert({ severity: "success", message: "Activity successfully logged to Carbon Twin! +15 EcoPoints." });
       fetchActivities();
       handleCloseDialog();
-    } catch (err) {
+    } catch (error) {
+      console.error("Failed to log activity", error);
       setAlert({ severity: "error", message: "Failed to log activity." });
     }
   };

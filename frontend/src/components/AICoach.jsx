@@ -99,7 +99,7 @@ export default function AICoach() {
       if (recognitionRef.current) {
         try {
           recognitionRef.current.stop();
-        } catch (e) {
+        } catch {
           // ignore
         }
       }
@@ -153,7 +153,8 @@ export default function AICoach() {
         severity: "success",
         message: `Recommendation Accepted! Footprint updated & EcoPoints awarded.`,
       });
-    } catch (e) {
+    } catch (error) {
+      console.error("Failed to accept recommendation", error);
       setAlert({ severity: "error", message: "Failed to accept recommendation." });
     }
   };
