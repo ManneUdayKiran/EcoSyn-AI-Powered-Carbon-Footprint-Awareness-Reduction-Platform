@@ -8,6 +8,19 @@ export const api = axios.create({
   timeout: 20000,
 });
 
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("ecosyn_token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 export const extractErrorMessage = (error) => {
   if (error.response?.data?.error) {
     return error.response.data.error;

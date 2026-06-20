@@ -8,6 +8,7 @@ import {
 } from "react-router-dom";
 import {
   AppBar,
+  Avatar,
   Toolbar,
   IconButton,
   Typography,
@@ -21,9 +22,15 @@ import {
   Tooltip,
   Chip,
   LinearProgress,
+  CircularProgress,
   Button,
   Snackbar,
   Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
 } from "@mui/material";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 import SpaceDashboardRoundedIcon from "@mui/icons-material/SpaceDashboardRounded";
@@ -32,7 +39,8 @@ import PortraitRoundedIcon from "@mui/icons-material/PortraitRounded";
 import ForumRoundedIcon from "@mui/icons-material/ForumRounded";
 import EmojiEventsRoundedIcon from "@mui/icons-material/EmojiEventsRounded";
 import HistoryRoundedIcon from "@mui/icons-material/HistoryRounded";
-import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
+import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
+import EditRoundedIcon from "@mui/icons-material/EditRounded";
 
 import Dashboard from "./components/Dashboard";
 import SmartScanner from "./components/SmartScanner";
@@ -40,6 +48,8 @@ import CarbonTwin from "./components/CarbonTwin";
 import AICoach from "./components/AICoach";
 import EcoChallenges from "./components/EcoChallenges";
 import ActivityLog from "./components/ActivityLog";
+import Auth from "./components/Auth";
+import Onboarding from "./components/Onboarding";
 import { api, API_BASE_URL } from "./api/client";
 
 const drawerWidth = 260;
@@ -53,7 +63,7 @@ const navItems = [
   { label: "Activity Log", path: "/activities", icon: <HistoryRoundedIcon /> },
 ];
 
-const SidebarContent = ({ onNavigate, profile, onReset }) => {
+const SidebarContent = ({ onNavigate, profile, onLogout, onEditProfile }) => {
   const location = useLocation();
   
   return (
@@ -86,17 +96,37 @@ const SidebarContent = ({ onNavigate, profile, onReset }) => {
       
       {/* User Stats Card in Sidebar */}
       {profile && (
-        <Box sx={{ p: 2.5, mx: 2, my: 2, borderRadius: 1, backgroundColor: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)" }}>
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
-            <Typography variant="body2" sx={{ color: "text.secondary", fontWeight: 600 }}>
-              {profile.studentName}
-            </Typography>
-            <Chip
-              label={`Lv. ${profile.level}`}
-              size="small"
-              color="primary"
-              sx={{ fontWeight: 700, height: 20, fontSize: "0.75rem" }}
-            />
+        <Box sx={{ p: 2, mx: 2, my: 2, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)" }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
+            <Avatar
+              src={profile.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(profile.studentName || 'ecosyn')}`}
+              alt={profile.studentName}
+              sx={{
+                width: 48,
+                height: 48,
+                border: "2px solid #10b981",
+                boxShadow: "0 0 10px rgba(16, 185, 129, 0.2)",
+                backgroundColor: "rgba(255,255,255,0.05)"
+              }}
+            >
+              {profile.studentName ? profile.studentName[0].toUpperCase() : "U"}
+            </Avatar>
+            <Box sx={{ overflow: "hidden", flexGrow: 1 }}>
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 0.5 }}>
+                <Typography variant="body1" sx={{ color: "#f8fafc", fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", flexGrow: 1 }}>
+                  {profile.studentName}
+                </Typography>
+                <IconButton size="small" onClick={onEditProfile} sx={{ color: "text.secondary", p: 0.5, "&:hover": { color: "#10b981" } }}>
+                  <EditRoundedIcon sx={{ fontSize: "1.05rem" }} />
+                </IconButton>
+              </Box>
+              <Chip
+                label={`Lv. ${profile.level}`}
+                size="small"
+                color="primary"
+                sx={{ fontWeight: 700, height: 18, fontSize: "0.7rem", mt: 0.5 }}
+              />
+            </Box>
           </Box>
           <Box sx={{ mb: 1 }}>
             <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
@@ -160,33 +190,34 @@ const SidebarContent = ({ onNavigate, profile, onReset }) => {
         })}
       </List>
 
-      <Box sx={{ p: 2, mt: "auto" }}>
+      <Box sx={{ p: 2, mt: "auto", display: "flex", flexDirection: "column", gap: 1 }}>
         <Button
           fullWidth
-          variant="outlined"
-          color="inherit"
-          startIcon={<RefreshRoundedIcon />}
-          onClick={onReset}
+          variant="contained"
+          color="error"
+          startIcon={<LogoutRoundedIcon />}
+          onClick={onLogout}
           sx={{
-            borderColor: "rgba(255,255,255,0.08)",
-            color: "text.secondary",
+            background: "linear-gradient(135deg, #ef4444, #b91c1c)",
+            color: "#fff",
+            fontWeight: 700,
             fontSize: "0.8rem",
             py: 1,
+            boxShadow: "0 4px 12px rgba(239, 68, 68, 0.15)",
             "&:hover": {
-              borderColor: "primary.main",
-              backgroundColor: "rgba(16, 185, 129, 0.05)",
-              color: "primary.main",
+              background: "linear-gradient(135deg, #dc2626, #991b1b)",
+              boxShadow: "0 6px 16px rgba(239, 68, 68, 0.25)",
             },
           }}
         >
-          Reset Demo Flow
+          Log Out
         </Button>
       </Box>
     </Box>
   );
 };
 
-const Shell = ({ profile, onReset }) => {
+const Shell = ({ profile, onLogout, onEditProfile }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const toggleDrawer = () => setMobileOpen((prev) => !prev);
   const closeDrawer = () => setMobileOpen(false);
@@ -202,6 +233,7 @@ const Shell = ({ profile, onReset }) => {
       sx={{
         display: "flex",
         minHeight: "100vh",
+        width: "100%",
         backgroundColor: "background.default",
       }}
     >
@@ -257,7 +289,7 @@ const Shell = ({ profile, onReset }) => {
             },
           }}
         >
-          <SidebarContent onNavigate={closeDrawer} profile={profile} onReset={onReset} />
+          <SidebarContent onNavigate={closeDrawer} profile={profile} onLogout={onLogout} onEditProfile={onEditProfile} />
         </Drawer>
         <Drawer
           variant="permanent"
@@ -273,7 +305,7 @@ const Shell = ({ profile, onReset }) => {
           }}
           open
         >
-          <SidebarContent onNavigate={() => {}} profile={profile} onReset={onReset} />
+          <SidebarContent onNavigate={() => {}} profile={profile} onLogout={onLogout} onEditProfile={onEditProfile} />
         </Drawer>
       </Box>
 
@@ -281,6 +313,8 @@ const Shell = ({ profile, onReset }) => {
         component="main"
         sx={{
           flexGrow: 1,
+          width: { xs: "100%", md: `calc(100% - ${drawerWidth}px)` },
+          minWidth: 0,
           p: { xs: 2.5, md: 4 },
           mt: 8,
           minHeight: "100vh",
@@ -302,10 +336,63 @@ const Shell = ({ profile, onReset }) => {
 };
 
 export default function App() {
+  const [token, setToken] = useState(localStorage.getItem("ecosyn_token") || null);
   const [profile, setProfile] = useState(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
+
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editSeed, setEditSeed] = useState("");
+
+  const getAvatarSeed = (url) => {
+    if (!url) return "";
+    try {
+      const parsedUrl = new URL(url);
+      return parsedUrl.searchParams.get("seed") || "";
+    } catch (e) {
+      const match = url.match(/[?&]seed=([^&#]*)/);
+      return match ? decodeURIComponent(match[1]) : "";
+    }
+  };
+
+  const handleOpenEditProfile = () => {
+    if (profile) {
+      setEditName(profile.studentName || "");
+      setEditSeed(getAvatarSeed(profile.avatar) || profile.studentName || "");
+      setEditProfileOpen(true);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!editName.trim()) {
+      setSnackbarSeverity("warning");
+      setSnackbarMessage("Name cannot be empty.");
+      setSnackbarOpen(true);
+      return;
+    }
+
+    try {
+      const finalAvatar = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(editSeed.trim() || editName.trim())}`;
+      const res = await api.put("/api/profile", {
+        studentName: editName.trim(),
+        avatar: finalAvatar
+      });
+      if (res.data.status === "success") {
+        setProfile(res.data.profile);
+        setSnackbarSeverity("success");
+        setSnackbarMessage("Profile updated successfully!");
+        setSnackbarOpen(true);
+        setEditProfileOpen(false);
+      }
+    } catch (err) {
+      console.error("Profile update failed", err);
+      setSnackbarSeverity("error");
+      setSnackbarMessage("Failed to update profile info.");
+      setSnackbarOpen(true);
+    }
+  };
 
   const fetchProfile = async () => {
     try {
@@ -313,10 +400,28 @@ export default function App() {
       setProfile(res.data);
     } catch (error) {
       console.error("Error loading profile", error);
+      if (error.response?.status === 401) {
+        // Token might have expired or is invalid, log out
+        handleLogout();
+      }
     }
   };
 
+  const handleAuthSuccess = (newToken, user) => {
+    localStorage.setItem("ecosyn_token", newToken);
+    localStorage.setItem("ecosyn_userId", user.id);
+    setToken(newToken);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("ecosyn_token");
+    localStorage.removeItem("ecosyn_userId");
+    setToken(null);
+    setProfile(null);
+  };
+
   useEffect(() => {
+    if (!token) return;
     const initialLoad = setTimeout(fetchProfile, 0);
     // Poll profile every 3 seconds to keep UI in sync during complex actions
     const interval = setInterval(fetchProfile, 3000);
@@ -324,9 +429,10 @@ export default function App() {
       clearTimeout(initialLoad);
       clearInterval(interval);
     };
-  }, []);
+  }, [token]);
 
   useEffect(() => {
+    if (!token) return undefined;
     if (!window.EventSource) return undefined;
 
     const streamUrl = `${API_BASE_URL.replace(/\/$/, "")}/api/events`;
@@ -336,6 +442,12 @@ export default function App() {
       try {
         const data = JSON.parse(event.data);
         if (data.type === "connected") return;
+
+        // Skip events that are for a different user
+        const currentUserId = localStorage.getItem("ecosyn_userId");
+        if (data.payload?.userId && data.payload.userId !== currentUserId) {
+          return;
+        }
 
         if (data.payload?.profile) {
           setProfile(data.payload.profile);
@@ -358,28 +470,126 @@ export default function App() {
     };
 
     return () => stream.close();
-  }, []);
+  }, [token]);
 
-  const handleReset = async () => {
-    try {
-      await api.post("/api/profile/reset");
-      setSnackbarSeverity("info");
-      setSnackbarMessage("Demo flow successfully reset!");
-      setSnackbarOpen(true);
-      fetchProfile();
-      // Redirect to home if needed
-      window.location.href = "/";
-    } catch (error) {
-      console.error("Reset failed", error);
-      setSnackbarSeverity("error");
-      setSnackbarMessage("Failed to reset demo flow.");
-      setSnackbarOpen(true);
-    }
-  };
+
+
+  if (!token) {
+    return <Auth onAuthSuccess={handleAuthSuccess} />;
+  }
+
+  if (!profile) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh", backgroundColor: "#02070e" }}>
+        <CircularProgress color="primary" />
+      </Box>
+    );
+  }
+
+  if (profile.isOnboarded === false) {
+    return <Onboarding onOnboardComplete={fetchProfile} />;
+  }
 
   return (
     <BrowserRouter>
-      <Shell profile={profile} onReset={handleReset} />
+      <Shell profile={profile} onLogout={handleLogout} onEditProfile={handleOpenEditProfile} />
+
+      {/* Edit Profile Dialog */}
+      <Dialog
+        open={editProfileOpen}
+        onClose={() => setEditProfileOpen(false)}
+        PaperProps={{
+          sx: {
+            backgroundColor: "rgba(10, 25, 41, 0.95)",
+            backdropFilter: "blur(20px)",
+            border: "1px solid rgba(255, 255, 255, 0.08)",
+            borderRadius: 3,
+            p: 1.5,
+            width: "100%",
+            maxWidth: 420
+          }
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, color: "#f8fafc", pb: 1 }}>
+          Edit Profile Info
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1.5, mt: 1, mb: 3 }}>
+            <Avatar
+              src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(editSeed.trim() || editName.trim() || 'ecosyn')}`}
+              alt="Avatar Preview"
+              sx={{
+                width: 76,
+                height: 76,
+                border: "3px solid #10b981",
+                boxShadow: "0 0 15px rgba(16, 185, 129, 0.25)",
+                backgroundColor: "rgba(255,255,255,0.05)"
+              }}
+            />
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+              Live Avatar Preview
+            </Typography>
+          </Box>
+          <TextField
+            fullWidth
+            label="Student Name"
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            variant="outlined"
+            sx={{
+              mb: 2.5,
+              "& .MuiOutlinedInput-root": {
+                borderRadius: 2,
+                backgroundColor: "rgba(255,255,255,0.02)",
+                "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(255,255,255,0.2)" },
+                "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#10b981" }
+              }
+            }}
+          />
+          <TextField
+            fullWidth
+            label="Avatar Seed"
+            placeholder="e.g. eco-warrior"
+            value={editSeed}
+            onChange={(e) => setEditSeed(e.target.value)}
+            variant="outlined"
+            helperText="Change the seed to customize your character avatar!"
+            sx={{
+              "& .MuiOutlinedInput-root": {
+                borderRadius: 2,
+                backgroundColor: "rgba(255,255,255,0.02)",
+                "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(255,255,255,0.2)" },
+                "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#10b981" }
+              },
+              "& .MuiFormHelperText-root": { color: "text.secondary" }
+            }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            onClick={() => setEditProfileOpen(false)}
+            sx={{ color: "text.secondary", fontWeight: 700, textTransform: "none" }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSaveProfile}
+            variant="contained"
+            color="primary"
+            sx={{
+              px: 3,
+              borderRadius: 2,
+              fontWeight: 700,
+              textTransform: "none",
+              background: "linear-gradient(135deg, #10b981, #06b6d4)",
+              boxShadow: "0 4px 12px rgba(16, 185, 129, 0.2)"
+            }}
+          >
+            Save Changes
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={3000}

@@ -6,6 +6,40 @@ EcoSyn is a modern, gamified full-stack platform designed to help citizens and h
 
 ---
 
+## 🎯 Core Concept & Hackathon Requirements
+
+### 1. Chosen Vertical
+* **Vertical**: **Individual & Household Sustainability / Climate Action Gamification**
+* **Target Audience**: Students, households, and individual citizens aiming to track, simulate, and actively mitigate their greenhouse gas emissions through smart visual analysis and behavioral cloning.
+
+### 2. Approach and Logic
+* **Digital Clone (Carbon Twin)**: Rather than static tables, the platform builds an adaptive behavioral simulation engine representing the user's ecological clone. Users run "what-if" scenarios (modifying transport distances, diets, thermostat temperatures, and shopping rates) to dynamically see forecasted deviations between a Business-As-Usual (BAU) baseline and Targeted Eco-friendly reductions.
+* **Frictionless Onboarding**: Rather than long forms, a 30-second multi-step card/slider wizard initializes profile metrics, seeding initial activities and syncing simulation sliders immediately on signup.
+* **AI-First Extraction**: Employs Large Language Models (LLMs) and Vision models to analyze receipt sheets, utility bill PDFs, and product photos to automate carbon estimation, minimizing manual data-entry fatigue.
+* **Scoped Multi-Tenancy & Resiliency**: All user metrics, logs, and activity records are scoped to their respective accounts via HMAC-SHA256 authenticated tokens. To handle potential database connection timeouts, the backend features a zero-dependency in-memory cache system that mirrors MongoDB collection behavior, ensuring full platform availability.
+
+### 3. How the Solution Works
+1. **Interactive Onboarding**: Upon first login, users complete an interactive card-and-slider wizard to establish their primary travel mode, diet category, monthly electricity units, and shopping frequency. The backend saves initial activity logs and syncs their starting Carbon Twin parameters.
+2. **Dynamic Dashboard & Metrics**:
+   - `monthlyFootprint` is calculated as the sum of all logged activity carbon footprints.
+   - `sustainabilityScore` (0-100) dynamically grades their carbon habits.
+   - `savingsCO2` and `savingsCost` track carbon offsets and utility savings from twin simulations and accepted recommendations.
+   - Profile levels, points, and badges are recalculated dynamically.
+3. **Smart Scanner (OCR & Vision)**: Text parsed from receipts/bills or images of objects are sent to an LLM/Vision model. The model identifies item categories, estimates carbon footprint sizes, and generates actionable, points-rewarding recommendations.
+4. **AI Coach Chat**: Reads the user's current profile metrics (footprint, savings, score, level) via prompt injection, providing tailored recommendations.
+5. **Real-time Synchronization**: Uses Server-Sent Events (SSE) to push server-side metric changes directly to the browser, updating the sidebar user stats card (including their dynamically assigned adventurer avatar) and charts in real time.
+
+### 4. Key Assumptions Made
+* **Emission Coefficients**:
+  - Transportation: Car = `0.26 kg CO₂/km`, Motorcycle = `0.18 kg CO₂/km`, Public Transit = `0.08 kg CO₂/km`.
+  - Diet: Heavy Meat = `6.2 kg CO₂/meal`, Mixed = `2.5 kg CO₂/meal`, Vegetarian = `0 kg CO₂/meal` (relative baseline).
+  - Electricity: `0.45 kg CO₂` per kWh unit.
+  - Shopping: `7.2 kg CO₂` per clothing/personal goods item.
+* **BAU Growth Rate**: Forecasts assume a standard 10% baseline increase in emissions (Business As Usual factor of `1.1`) over a user's current monthly footprint.
+* **Currency / Savings Index**: Financial savings are calculated using standard utility rates (approx. `$0.24` per kWh unit) and fuel indices (`$0.35` per kg CO₂ saved on transport).
+
+---
+
 ## ✨ Features Checklist & Highlights
 
 - [x] **Interactive Carbon Twin** – Map monthly carbon footprints, compare forecasts against a Business-As-Usual (BAU) baseline vs. an Eco-friendly track, and monitor lifetime CO2 and financial savings.

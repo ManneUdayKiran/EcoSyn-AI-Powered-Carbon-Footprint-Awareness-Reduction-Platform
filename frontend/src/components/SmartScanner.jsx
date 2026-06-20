@@ -170,9 +170,9 @@ export default function SmartScanner() {
         </Tabs>
 
         <Box sx={{ p: 4 }}>
-          <Grid container spacing={3}>
+          <Grid container spacing={2}>
             {/* Left Upload Column */}
-            <Grid item xs={12} md={6} sx={{ display: "flex", flexDirection: "column" }}>
+            <Grid item xs={12} md={12} sx={{ display: "flex", flexDirection: "column" }}>
               <Paper
                 sx={{
                   backgroundColor: "rgba(255, 255, 255, 0.015)",
@@ -180,7 +180,7 @@ export default function SmartScanner() {
                   borderRadius: 1,
                   p: 3,
                   height: "100%",
-                  minHeight: 480,
+                  minHeight: 320,
                   display: "flex",
                   flexDirection: "column",
                   justifyContent: "space-between",
@@ -315,7 +315,7 @@ export default function SmartScanner() {
                 {/* Hackathon Fast-Track Seeds */}
                 <Box sx={{ mt: 3.5 }}>
                   <Typography variant="body2" sx={{ fontWeight: 700, color: "text.secondary", mb: 1 }}>
-                    💡 Hackathon Demo Quick-Select:
+                    💡 Sample Files for Testing:
                   </Typography>
                   <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
                     {activeTab === 0 ? (
@@ -366,7 +366,7 @@ export default function SmartScanner() {
             </Grid>
 
             {/* Right Result Column */}
-            <Grid item xs={12} md={6} sx={{ display: "flex", flexDirection: "column" }}>
+            <Grid item xs={12} md={12} sx={{ display: "flex", flexDirection: "column" }}>
               <Paper
                 sx={{
                   backgroundColor: "rgba(255, 255, 255, 0.015)",
@@ -374,7 +374,7 @@ export default function SmartScanner() {
                   borderRadius: 1,
                   p: 3,
                   height: "100%",
-                  minHeight: 480,
+                  minHeight: 320,
                   display: "flex",
                   flexDirection: "column",
                   justifyContent: "center",
@@ -492,8 +492,8 @@ export default function SmartScanner() {
                 {/* 2. VISION ASSESS RESULT */}
                 {!scanning && visionResult && (
                   <Box>
-                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-                      <Typography variant="h6" sx={{ fontWeight: 800, color: "primary.main" }}>
+                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0 }}>
+                      <Typography variant="h4" sx={{ fontWeight: 800, color: "primary.main" }}>
                         {visionResult.objectName}
                       </Typography>
                       <Chip label={visionResult.category} size="small" color="primary" sx={{ fontWeight: 700 }} />

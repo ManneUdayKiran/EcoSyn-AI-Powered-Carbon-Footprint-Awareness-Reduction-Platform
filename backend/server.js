@@ -6,6 +6,7 @@ import multer from "multer";
 import { PDFParse } from "pdf-parse";
 import Groq from "groq-sdk";
 import { readFileSync } from "fs";
+import crypto from "crypto";
 
 dotenv.config();
 
@@ -58,14 +59,15 @@ const EMISSION_FACTORS = {
 
 // Database Connection & Memory Fallback State
 let isMongoConnected = false;
+const dbUri = process.env.MONGODB_URI || process.env.MONGO_URI || "mongodb://localhost:27017/ecosyn";
 mongoose
-  .connect(process.env.MONGO_URI || "mongodb://localhost:27017/ecosyn")
+  .connect(dbUri)
   .then(() => {
-    console.log(`✅ MongoDB connected ${process.env.MONGO_URI}`);
+    console.log(`✅ MongoDB connected: ${dbUri.replace(/:[^@]+@/, ":****@")}`); // Hide credentials in log
     isMongoConnected = true;
   })
   .catch((err) => {
-    console.error("⚠️ MongoDB connection failed. Operating in MEMORY-FALLBACK mode.");
+    console.error("⚠️ MongoDB connection failed. Operating in MEMORY-FALLBACK mode:", err.message);
     isMongoConnected = false;
   });
 
@@ -100,17 +102,36 @@ try {
   console.warn("ℹ️ sample-data.json missing or invalid. Using default fallback configuration.");
 }
 
-// Memory Database
-let memoryProfile = JSON.parse(JSON.stringify(sampleData.profile));
-let memoryActivities = JSON.parse(JSON.stringify(sampleData.activities));
-let memoryRecommendations = JSON.parse(JSON.stringify(sampleData.recommendations));
-let memoryChallenges = JSON.parse(JSON.stringify(sampleData.challenges));
+// Memory Database (scoped by user ID)
+let memoryProfiles = {};
+let memoryActivities = {};
+let memoryRecommendations = {};
+let memoryChallenges = {};
 let memoryLeaderboard = JSON.parse(JSON.stringify(sampleData.leaderboard));
-let memoryTwinScenarios = JSON.parse(JSON.stringify(sampleData.twinScenarios || []));
+let memoryTwinScenarios = {};
 
 // MongoDB Schemas
+const UserSchema = new mongoose.Schema({
+  email: { type: String, required: true, unique: true },
+  password: { type: String, required: true }
+}, { timestamps: true });
+
+const User = mongoose.model("User", UserSchema);
+
+const LogSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: false },
+  action: { type: String, required: true },
+  details: { type: mongoose.Schema.Types.Mixed },
+  timestamp: { type: Date, default: Date.now }
+});
+
+const Log = mongoose.model("Log", LogSchema);
+
 const ProfileSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, unique: true },
   studentName: { type: String, default: "Eco Warrior" },
+  avatar: { type: String, default: "" },
+  isOnboarded: { type: Boolean, default: false },
   sustainabilityScore: { type: Number, default: 72 },
   ecoPoints: { type: Number, default: 450 },
   level: { type: Number, default: 2 },
@@ -135,6 +156,7 @@ const ProfileSchema = new mongoose.Schema({
 const Profile = mongoose.model("Profile", ProfileSchema);
 
 const ActivitySchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   category: String,
   description: String,
   amount: String,
@@ -146,6 +168,7 @@ const ActivitySchema = new mongoose.Schema({
 const Activity = mongoose.model("Activity", ActivitySchema);
 
 const ChallengeSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   id: String,
   title: String,
   description: String,
@@ -192,40 +215,99 @@ const summarizeActivities = (activities = []) => {
 };
 
 // Database Operations Wrappers (Mongo with Memory Fallback)
-async function getProfile() {
+const freshProfileDefaults = {
+  isOnboarded: false,
+  sustainabilityScore: 70,
+  ecoPoints: 0,
+  level: 1,
+  levelProgress: 0,
+  monthlyFootprint: 0,
+  predictedFootprintBAU: 0,
+  predictedFootprintEco: 0,
+  savingsCO2: 0,
+  savingsCost: 0,
+  acceptedRecommendations: [],
+  completedChallenges: [],
+  badges: [],
+  twinScenarios: []
+};
+
+async function getProfile(userId, customName) {
+  const name = customName || "Eco Warrior";
+  const seed = encodeURIComponent(name + "-" + userId.toString().slice(-4));
+  const avatarUrl = `https://api.dicebear.com/7.x/adventurer/svg?seed=${seed}`;
+
   if (isMongoConnected) {
     try {
-      let prof = await Profile.findOne({ studentName: "Eco Warrior" });
+      let prof = await Profile.findOne({ userId });
       if (!prof) {
-        prof = await Profile.create(sampleData.profile);
+        prof = await Profile.create({
+          userId,
+          studentName: name,
+          avatar: avatarUrl,
+          ...freshProfileDefaults
+        });
+      } else if (!prof.avatar) {
+        prof.avatar = avatarUrl;
+        await prof.save();
       }
       return prof;
     } catch (e) {
       console.warn("Mongo error fetching profile, using memory store.");
     }
   }
-  return memoryProfile;
+  if (!memoryProfiles[userId]) {
+    memoryProfiles[userId] = {
+      userId,
+      studentName: name,
+      avatar: avatarUrl,
+      ...JSON.parse(JSON.stringify(freshProfileDefaults))
+    };
+  } else if (!memoryProfiles[userId].avatar) {
+    memoryProfiles[userId].avatar = avatarUrl;
+  }
+  return memoryProfiles[userId];
 }
 
-async function saveProfile(prof) {
+async function saveProfile(userId, prof) {
   if (isMongoConnected) {
     try {
-      await Profile.updateOne({ studentName: "Eco Warrior" }, prof, { upsert: true });
+      await Profile.updateOne({ userId }, prof, { upsert: true });
       return;
     } catch (e) {
       console.warn("Mongo error saving profile, updating memory store.");
     }
   }
-  memoryProfile = prof;
+  memoryProfiles[userId] = prof;
 }
 
-async function getTwinScenarios() {
-  const profile = await getProfile();
-  return profile.twinScenarios?.length ? profile.twinScenarios : memoryTwinScenarios;
+async function getRecommendations(userId) {
+  if (!memoryRecommendations[userId]) {
+    memoryRecommendations[userId] = JSON.parse(JSON.stringify(sampleData.recommendations || []));
+  }
+  return memoryRecommendations[userId];
 }
 
-async function saveTwinScenario(scenario) {
-  const profile = await getProfile();
+async function addRecommendation(userId, rec) {
+  if (!memoryRecommendations[userId]) {
+    memoryRecommendations[userId] = JSON.parse(JSON.stringify(sampleData.recommendations || []));
+  }
+  const exists = memoryRecommendations[userId].some(r => r.title === rec.title);
+  if (!exists) {
+    memoryRecommendations[userId].unshift(rec);
+  }
+}
+
+async function getTwinScenarios(userId) {
+  const profile = await getProfile(userId);
+  if (!memoryTwinScenarios[userId]) {
+    memoryTwinScenarios[userId] = [];
+  }
+  return profile.twinScenarios?.length ? profile.twinScenarios : memoryTwinScenarios[userId];
+}
+
+async function saveTwinScenario(userId, scenario) {
+  const profile = await getProfile(userId);
   const nextScenario = {
     id: scenario.id || `scenario-${Date.now()}`,
     name: scenario.name || `Scenario ${new Date().toLocaleDateString()}`,
@@ -234,75 +316,86 @@ async function saveTwinScenario(scenario) {
     createdAt: scenario.createdAt || new Date().toISOString()
   };
 
-  const currentScenarios = profile.twinScenarios?.length ? profile.twinScenarios : memoryTwinScenarios;
+  if (!memoryTwinScenarios[userId]) {
+    memoryTwinScenarios[userId] = [];
+  }
+  const currentScenarios = profile.twinScenarios?.length ? profile.twinScenarios : memoryTwinScenarios[userId];
   const nextScenarios = [nextScenario, ...currentScenarios].slice(0, 8);
   profile.twinScenarios = nextScenarios;
+  memoryTwinScenarios[userId] = nextScenarios;
 
-  if (Number.isFinite(Number(nextScenario.calculations?.carbonSaved))) {
-    profile.savingsCO2 = Number(Math.max(profile.savingsCO2, Number(nextScenario.calculations.carbonSaved)).toFixed(1));
-  }
-  if (Number.isFinite(Number(nextScenario.calculations?.costSaved))) {
-    profile.savingsCost = Number(Math.max(profile.savingsCost, Number(nextScenario.calculations.costSaved)).toFixed(1));
-  }
-  profile.predictedFootprintEco = Number((profile.predictedFootprintBAU - profile.savingsCO2).toFixed(1));
-
-  checkLevelUp(profile, 10);
-  await saveProfile(profile);
-  memoryTwinScenarios = nextScenarios;
-  return { scenario: nextScenario, profile };
+  await saveProfile(userId, profile);
+  const updatedProfile = await recalculateProfileMetrics(userId);
+  return { scenario: nextScenario, profile: updatedProfile };
 }
 
-async function getActivities() {
+async function getActivities(userId) {
   if (isMongoConnected) {
     try {
-      const dbActivities = await Activity.find().sort({ createdAt: -1 });
-      if (dbActivities.length > 0) return dbActivities;
+      const dbActivities = await Activity.find({ userId }).sort({ createdAt: -1 });
+      return dbActivities;
     } catch (e) {
       console.warn("Mongo error fetching activities, using memory store.");
     }
   }
-  return memoryActivities;
+  if (!memoryActivities[userId]) {
+    memoryActivities[userId] = [];
+  }
+  return memoryActivities[userId];
 }
 
-async function addActivity(activity) {
+async function addActivity(userId, activity) {
   if (isMongoConnected) {
     try {
-      await Activity.create(activity);
+      await Activity.create({ userId, ...activity });
       return;
     } catch (e) {
       console.warn("Mongo error creating activity, using memory store.");
     }
   }
-  const newAct = { id: `act-${Date.now()}`, ...activity };
-  memoryActivities.unshift(newAct);
+  const newAct = { id: `act-${Date.now()}`, userId, ...activity };
+  if (!memoryActivities[userId]) {
+    memoryActivities[userId] = [];
+  }
+  memoryActivities[userId].unshift(newAct);
   // Cap memory activities to 50
-  if (memoryActivities.length > 50) memoryActivities.pop();
+  if (memoryActivities[userId].length > 50) memoryActivities[userId].pop();
 }
 
-async function getChallenges() {
+async function getChallenges(userId) {
   if (isMongoConnected) {
     try {
-      const dbChallenges = await Challenge.find();
+      let dbChallenges = await Challenge.find({ userId });
       if (dbChallenges.length > 0) return dbChallenges;
+      // Seed default challenges for this user in DB starting fresh
+      const seeded = sampleData.challenges.map(c => ({ ...c, progress: 0, completed: false, userId }));
+      dbChallenges = await Challenge.insertMany(seeded);
+      return dbChallenges;
     } catch (e) {
       console.warn("Mongo error fetching challenges, using memory store.");
     }
   }
-  return memoryChallenges;
+  if (!memoryChallenges[userId] || memoryChallenges[userId].length === 0) {
+    memoryChallenges[userId] = sampleData.challenges.map(c => ({ ...c, progress: 0, completed: false, userId }));
+  }
+  return memoryChallenges[userId];
 }
 
-async function updateChallenge(challengeId, updates) {
+async function updateChallenge(userId, challengeId, updates) {
   if (isMongoConnected) {
     try {
-      await Challenge.updateOne({ id: challengeId }, updates);
+      await Challenge.updateOne({ userId, id: challengeId }, updates);
       return;
     } catch (e) {
       console.warn("Mongo error updating challenge, using memory store.");
     }
   }
-  const idx = memoryChallenges.findIndex(c => c.id === challengeId);
+  if (!memoryChallenges[userId] || memoryChallenges[userId].length === 0) {
+    memoryChallenges[userId] = sampleData.challenges.map(c => ({ ...c, progress: 0, completed: false, userId }));
+  }
+  const idx = memoryChallenges[userId].findIndex(c => c.id === challengeId);
   if (idx !== -1) {
-    memoryChallenges[idx] = { ...memoryChallenges[idx], ...updates };
+    memoryChallenges[userId][idx] = { ...memoryChallenges[userId][idx], ...updates };
   }
 }
 
@@ -331,7 +424,240 @@ function checkLevelUp(profile, pointsGained) {
   profile.sustainabilityScore = Math.min(98, Math.round(70 + (profile.ecoPoints / 50)));
 }
 
+async function recalculateProfileMetrics(userId) {
+  const profile = await getProfile(userId);
+  const activities = await getActivities(userId);
+  const challenges = await getChallenges(userId);
+
+  // 1. Calculate monthlyFootprint
+  const totalCarbon = activities.reduce((sum, act) => sum + Number(act.carbon || 0), 0);
+  profile.monthlyFootprint = Number(totalCarbon.toFixed(1));
+
+  // 2. Calculate savingsCO2 and savingsCost
+  // Max savings from twin scenarios
+  const twinScenarios = profile.twinScenarios || [];
+  const maxTwinCO2 = twinScenarios.reduce((max, sc) => Math.max(max, Number(sc.calculations?.carbonSaved || 0)), 0);
+  const maxTwinCost = twinScenarios.reduce((max, sc) => Math.max(max, Number(sc.calculations?.costSaved || 0)), 0);
+
+  // Sum savings from accepted recommendations
+  const acceptedIds = profile.acceptedRecommendations || [];
+  let recCO2 = 0;
+  let recCost = 0;
+  let recPoints = 0;
+  
+  const recommendationsList = sampleData.recommendations || [];
+  acceptedIds.forEach(id => {
+    const rec = recommendationsList.find(r => r.id === id);
+    if (rec) {
+      recCO2 += Number(rec.co2Reduction || 0);
+      recCost += Number(rec.costSavings || 0);
+      recPoints += Number(rec.points || 0);
+    } else {
+      recCO2 += 10;
+      recCost += 15;
+      recPoints += 50;
+    }
+  });
+
+  profile.savingsCO2 = Number((maxTwinCO2 + recCO2).toFixed(1));
+  profile.savingsCost = Number((maxTwinCost + recCost).toFixed(1));
+
+  // 3. Predicted footprints
+  profile.predictedFootprintBAU = Number((profile.monthlyFootprint * 1.1).toFixed(1));
+  profile.predictedFootprintEco = Number(Math.max(0, profile.predictedFootprintBAU - profile.savingsCO2).toFixed(1));
+
+  // 4. Calculate ecoPoints
+  // Points from activities: Custom = 15, Vision = 20, OCR = 25
+  let activityPoints = 0;
+  activities.forEach(act => {
+    const desc = (act.description || "").toLowerCase();
+    if (desc.startsWith("vision") || desc.includes("vision scan")) {
+      activityPoints += 20;
+    } else if (desc.includes("scan") || desc.includes("receipt") || desc.includes("bill")) {
+      activityPoints += 25;
+    } else {
+      activityPoints += 15;
+    }
+  });
+
+  // Points from challenges
+  let challengePoints = 0;
+  challenges.forEach(chal => {
+    if (chal.completed) {
+      challengePoints += Number(chal.points || 0);
+    } else {
+      challengePoints += Number(chal.progress || 0) * 5;
+    }
+  });
+
+  // Points from twin scenarios
+  const twinPoints = twinScenarios.length * 10;
+
+  profile.ecoPoints = activityPoints + challengePoints + twinPoints + recPoints;
+
+  // 5. Level calculation
+  const ptsPerLevel = 200;
+  profile.level = Math.floor(profile.ecoPoints / ptsPerLevel) + 1;
+  profile.levelProgress = Math.round(((profile.ecoPoints % ptsPerLevel) / ptsPerLevel) * 100);
+
+  // 6. Sustainability Score calculation
+  profile.sustainabilityScore = Math.min(98, Math.round(70 + (profile.ecoPoints / 50)));
+
+  // 7. Badges calculation
+  const badgesSet = new Set();
+  if (activities.some(act => act.category === "Electricity")) {
+    badgesSet.add("Energy Saver");
+  }
+  if (activities.some(act => act.category === "Food")) {
+    badgesSet.add("Plant Eater");
+  }
+  for (let L = 2; L <= profile.level; L++) {
+    badgesSet.add(`Level ${L} Hero`);
+  }
+  challenges.forEach(chal => {
+    if (chal.completed) {
+      if (chal.id === "ch-1") badgesSet.add("Veggie Chef");
+      if (chal.id === "ch-2") badgesSet.add("Transit Hero");
+      if (chal.id === "ch-3") badgesSet.add("Vampire Slayer");
+    }
+  });
+  profile.badges = Array.from(badgesSet);
+
+  await saveProfile(userId, profile);
+  return profile;
+}
+
+const JWT_SECRET = process.env.JWT_SECRET || "ecosyn-secret-key-12345";
+
+function generateToken(user) {
+  const payload = JSON.stringify({ userId: user._id, email: user.email, timestamp: Date.now() });
+  const signature = crypto.createHmac("sha256", JWT_SECRET).update(payload).digest("hex");
+  return Buffer.from(payload).toString("base64") + "." + signature;
+}
+
+function verifyToken(token) {
+  if (!token) return null;
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 2) return null;
+    const payload = Buffer.from(parts[0], "base64").toString("utf-8");
+    const signature = parts[1];
+    const expectedSignature = crypto.createHmac("sha256", JWT_SECRET).update(payload).digest("hex");
+    if (signature !== expectedSignature) return null;
+    return JSON.parse(payload);
+  } catch (e) {
+    return null;
+  }
+}
+
+async function logAction(userId, action, details) {
+  try {
+    if (isMongoConnected) {
+      await Log.create({ userId, action, details });
+    }
+    console.log(`[AUDIT LOG] User: ${userId || "Guest"} | Action: ${action} | Details:`, details);
+  } catch (err) {
+    console.error("Failed to write log to Mongo:", err);
+  }
+}
+
+async function authMiddleware(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Access denied. No session token provided." });
+  }
+
+  const token = authHeader.split(" ")[1];
+  const decoded = verifyToken(token);
+  if (!decoded) {
+    return res.status(401).json({ error: "Invalid or expired session token." });
+  }
+
+  req.userId = decoded.userId;
+  req.userEmail = decoded.email;
+  next();
+}
+
 // REST API Endpoints
+
+// Auth: Signup
+app.post("/api/auth/signup", async (req, res) => {
+  const { email, password, studentName } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: "Email and password are required." });
+  }
+
+  try {
+    if (isMongoConnected) {
+      const existingUser = await User.findOne({ email: email.toLowerCase() });
+      if (existingUser) {
+        return res.status(400).json({ error: "A user with this email already exists." });
+      }
+
+      const hashedPassword = crypto.createHash("sha256").update(password).digest("hex");
+      const user = await User.create({ email: email.toLowerCase(), password: hashedPassword });
+      
+      // Initialize profile
+      const name = studentName || email.split("@")[0];
+      const profile = await getProfile(user._id, name);
+
+      await logAction(user._id, "SIGNUP", { email: user.email });
+      const token = generateToken(user);
+      return res.status(201).json({ status: "success", token, user: { email: user.email, id: user._id }, profile });
+    } else {
+      // Memory Store Fallback
+      const mockId = `mock-user-${Date.now()}`;
+      const name = studentName || email.split("@")[0];
+      const profile = await getProfile(mockId, name);
+      
+      await logAction(mockId, "SIGNUP", { email });
+      const mockUser = { _id: mockId, email };
+      const token = generateToken(mockUser);
+      return res.status(201).json({ status: "success", token, user: { email, id: mockId }, profile });
+    }
+  } catch (error) {
+    console.error("Signup error:", error);
+    res.status(500).json({ error: "An error occurred during signup." });
+  }
+});
+
+// Auth: Login
+app.post("/api/auth/login", async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: "Email and password are required." });
+  }
+
+  try {
+    if (isMongoConnected) {
+      const user = await User.findOne({ email: email.toLowerCase() });
+      if (!user) {
+        return res.status(400).json({ error: "Invalid email or password." });
+      }
+
+      const hashedPassword = crypto.createHash("sha256").update(password).digest("hex");
+      if (user.password !== hashedPassword) {
+        return res.status(400).json({ error: "Invalid email or password." });
+      }
+
+      const profile = await getProfile(user._id);
+      await logAction(user._id, "LOGIN", { email: user.email });
+      const token = generateToken(user);
+      return res.json({ status: "success", token, user: { email: user.email, id: user._id }, profile });
+    } else {
+      // Memory Store Fallback
+      const mockId = `mock-user-${email.toLowerCase().replace(/[^a-z0-9]/g, "")}`;
+      const profile = await getProfile(mockId, email.split("@")[0]);
+      await logAction(mockId, "LOGIN", { email });
+      const mockUser = { _id: mockId, email };
+      const token = generateToken(mockUser);
+      return res.json({ status: "success", token, user: { email, id: mockId }, profile });
+    }
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).json({ error: "An error occurred during login." });
+  }
+});
 
 // Real-time event stream for live dashboard updates
 app.get("/api/events", (req, res) => {
@@ -359,38 +685,175 @@ app.get("/api/health", (req, res) => {
 });
 
 // 2. Fetch User Profile
-app.get("/api/profile", async (req, res) => {
-  const profile = await getProfile();
+app.get("/api/profile", authMiddleware, async (req, res) => {
+  const profile = await recalculateProfileMetrics(req.userId);
   res.json(profile);
 });
 
-// 3. Reset Demo State
-app.post("/api/profile/reset", async (req, res) => {
-  memoryProfile = JSON.parse(JSON.stringify(sampleData.profile));
-  memoryActivities = JSON.parse(JSON.stringify(sampleData.activities));
-  memoryRecommendations = JSON.parse(JSON.stringify(sampleData.recommendations));
-  memoryChallenges = JSON.parse(JSON.stringify(sampleData.challenges));
-  memoryLeaderboard = JSON.parse(JSON.stringify(sampleData.leaderboard));
+// 2b. Complete Survey Onboarding
+app.post("/api/profile/onboard", authMiddleware, async (req, res) => {
+  const { travel, diet, electricity, shopping } = req.body;
+  const userId = req.userId;
 
+  // Clear existing activities first to ensure onboarding sets a clean baseline
   if (isMongoConnected) {
     try {
-      await Profile.deleteMany({});
-      await Activity.deleteMany({});
-      await Challenge.deleteMany({});
-      await Profile.create(sampleData.profile);
-      await Activity.insertMany(sampleData.activities);
-      await Challenge.insertMany(sampleData.challenges);
+      await Activity.deleteMany({ userId });
     } catch (e) {
-      console.warn("Error resetting MongoDB collections. Using memory reset.");
+      console.warn("Error clearing activities for onboarding", e);
     }
   }
-  emitRealtimeEvent("profile.reset", { message: "Demo flow reset to seed data." });
-  res.json({ status: "reset", profile: memoryProfile });
+  memoryActivities[userId] = [];
+
+  // 1. Travel Activity
+  let travelCarbon = 0;
+  let travelDesc = "";
+  let travelAmt = "";
+  let travelCost = 0;
+  let carKm = 0;
+  if (travel === "car") {
+    travelCarbon = 112; // 25 km commute * 4.3 weeks * 0.26 kg/km + extra
+    travelDesc = "Daily Car Commute";
+    travelAmt = "100 km / week";
+    travelCost = 35;
+    carKm = 100;
+  } else if (travel === "bike") {
+    travelCarbon = 34;
+    travelDesc = "Motorcycle Travel";
+    travelAmt = "30 km / week";
+    travelCost = 12;
+    carKm = 30;
+  } else if (travel === "public") {
+    travelCarbon = 15;
+    travelDesc = "Public Transit Commuting";
+    travelAmt = "15 km / week";
+    travelCost = 20;
+    carKm = 15;
+  } else {
+    travelCarbon = 0;
+    travelDesc = "Walking & Cycling";
+    travelAmt = "0 km / week";
+    travelCost = 0;
+    carKm = 0;
+  }
+
+  // 2. Diet Activity
+  let dietCarbon = 0;
+  let dietDesc = "";
+  let dietAmt = "";
+  let dietCost = 0;
+  let meatMeals = 0;
+  if (diet === "heavy_meat") {
+    dietCarbon = 260; // 10 meals * 6.2 kg * 4.3
+    dietDesc = "Heavy Meat Diet Meals";
+    dietAmt = "10 beef meals / week";
+    dietCost = 150;
+    meatMeals = 10;
+  } else if (diet === "mixed") {
+    dietCarbon = 107;
+    dietDesc = "Mixed Diet Meals";
+    dietAmt = "4 mixed meals / week";
+    dietCost = 90;
+    meatMeals = 4;
+  } else {
+    dietCarbon = 0;
+    dietDesc = "Vegetarian Diet Meals";
+    dietAmt = "0 meat meals / week";
+    dietCost = 50;
+    meatMeals = 0;
+  }
+
+  // 3. Electricity Activity
+  const elecUnits = Number(electricity) || 300;
+  const elecCarbon = Math.round(elecUnits * 0.45);
+  const elecCost = Math.round(elecUnits * 0.24);
+
+  // 4. Shopping Activity
+  const shopItems = Number(shopping) || 2;
+  const shopCarbon = Math.round(shopItems * 7.2);
+  const shopCost = Math.round(shopItems * 35);
+
+  const initialActivities = [
+    { category: "Transport", description: travelDesc, amount: travelAmt, carbon: travelCarbon, cost: travelCost },
+    { category: "Food", description: dietDesc, amount: dietAmt, carbon: dietCarbon, cost: dietCost },
+    { category: "Electricity", description: "Monthly Household Utility Power", amount: `${elecUnits} Units`, carbon: elecCarbon, cost: elecCost },
+    { category: "Shopping", description: "Monthly Shopping Purchases", amount: `${shopItems} items`, carbon: shopCarbon, cost: shopCost }
+  ];
+
+  for (const act of initialActivities) {
+    const activityData = {
+      ...act,
+      date: new Date().toISOString().split("T")[0]
+    };
+    await addActivity(userId, activityData);
+  }
+
+  const profile = await getProfile(userId);
+  profile.isOnboarded = true;
+  profile.twinScenarios = [{
+    id: `scenario-initial-${Date.now()}`,
+    name: "My Starting Habits",
+    variables: {
+      carKm,
+      meatMeals,
+      thermostat: 0,
+      shoppingItems: shopItems
+    },
+    calculations: {
+      carFootprint: travelCarbon,
+      foodFootprint: dietCarbon,
+      electricityFootprint: elecCarbon,
+      shoppingFootprint: shopCarbon,
+      totalProjected: travelCarbon + dietCarbon + elecCarbon + shopCarbon,
+      carbonSaved: 0,
+      costSaved: 0
+    },
+    createdAt: new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })
+  }];
+
+  await saveProfile(userId, profile);
+  const updatedProfile = await recalculateProfileMetrics(userId);
+
+  await logAction(userId, "ONBOARD", { travel, diet, electricity: elecUnits, shopping: shopItems });
+  emitRealtimeEvent("profile.onboarded", { message: "Welcome onboard! Your carbon clone is synced.", userId });
+
+  res.json({ status: "success", profile: updatedProfile });
 });
 
+// 2c. Update Profile Info (Edit Profile)
+app.put("/api/profile", authMiddleware, async (req, res) => {
+  const { studentName, avatar } = req.body;
+  const userId = req.userId;
+
+  if (!studentName || !studentName.trim()) {
+    return res.status(400).json({ error: "Student name is required." });
+  }
+
+  try {
+    const profile = await getProfile(userId);
+    profile.studentName = studentName.trim();
+    if (avatar) {
+      profile.avatar = avatar;
+    }
+
+    await saveProfile(userId, profile);
+    const updatedProfile = await recalculateProfileMetrics(userId);
+
+    await logAction(userId, "EDIT_PROFILE", { studentName: profile.studentName, avatar: profile.avatar });
+    emitRealtimeEvent("profile.updated", { message: "Your profile info has been updated.", userId });
+
+    res.json({ status: "success", profile: updatedProfile });
+  } catch (error) {
+    console.error("Failed to update profile:", error);
+    res.status(500).json({ error: "Failed to update profile information." });
+  }
+});
+
+
+
 // 4. Fetch Activities
-app.get("/api/activities", async (req, res) => {
-  const list = await getActivities();
+app.get("/api/activities", authMiddleware, async (req, res) => {
+  const list = await getActivities(req.userId);
   res.json(list);
 });
 
@@ -400,7 +863,7 @@ app.get("/api/emission-factors", (req, res) => {
 });
 
 // 5. Log Custom Activity Manually
-app.post("/api/activities/log", async (req, res) => {
+app.post("/api/activities/log", authMiddleware, async (req, res) => {
   const { category, description, amount, carbon, cost, date } = req.body;
   if (!category || !description) {
     return res.status(400).json({ error: "Category and description are required." });
@@ -418,34 +881,31 @@ app.post("/api/activities/log", async (req, res) => {
     date: date || new Date().toISOString().split("T")[0]
   };
 
-  await addActivity(activity);
+  const userId = req.userId;
+  await addActivity(userId, activity);
 
-  // Update profile monthly emission and predictions
-  const profile = await getProfile();
-  profile.monthlyFootprint = Number((profile.monthlyFootprint + numCarbon).toFixed(1));
-  profile.predictedFootprintBAU = Number((profile.monthlyFootprint * 1.1).toFixed(1));
-  profile.predictedFootprintEco = Number((profile.predictedFootprintBAU - profile.savingsCO2).toFixed(1));
-
-  // Award 15 EcoPoints for logging activity
-  checkLevelUp(profile, 15);
-  await saveProfile(profile);
+  const profile = await recalculateProfileMetrics(userId);
+  await logAction(userId, "LOG_ACTIVITY", activity);
 
   emitRealtimeEvent("activity.logged", {
     message: `${activity.description} logged. +15 EcoPoints.`,
     activity,
-    profile
+    profile,
+    userId
   });
   res.json({ status: "logged", activity, profile });
 });
 
 // 6. Get Recommendations
-app.get("/api/recommendations", async (req, res) => {
-  res.json(memoryRecommendations);
+app.get("/api/recommendations", authMiddleware, async (req, res) => {
+  const list = await getRecommendations(req.userId);
+  res.json(list);
 });
 
 // 6b. Suggested challenge focus based on the user's largest recent footprint category
-app.get("/api/challenges/suggested", async (req, res) => {
-  const activities = await getActivities();
+app.get("/api/challenges/suggested", authMiddleware, async (req, res) => {
+  const userId = req.userId;
+  const activities = await getActivities(userId);
   const totals = activities.reduce((acc, activity) => {
     acc[activity.category] = (acc[activity.category] || 0) + Number(activity.carbon || 0);
     return acc;
@@ -493,77 +953,77 @@ app.get("/api/challenges/suggested", async (req, res) => {
 });
 
 // 7. Accept Recommendation
-app.post("/api/profile/accept-recommendation", async (req, res) => {
+app.post("/api/profile/accept-recommendation", authMiddleware, async (req, res) => {
   const { recommendationId } = req.body;
   if (!recommendationId) {
     return res.status(400).json({ error: "recommendationId is required." });
   }
 
-  const profile = await getProfile();
+  const userId = req.userId;
+  const profile = await getProfile(userId);
   if (profile.acceptedRecommendations.includes(recommendationId)) {
     return res.json({ status: "already_accepted", profile });
   }
 
-  // Find recommendation points/savings
-  const rec = memoryRecommendations.find(r => r.id === recommendationId);
-  const pts = rec ? rec.points : 50;
-  const co2Reduction = rec ? rec.co2Reduction : 10;
-  const costSavings = rec ? rec.costSavings : 15;
-
   profile.acceptedRecommendations.push(recommendationId);
-  profile.savingsCO2 = Number((profile.savingsCO2 + co2Reduction).toFixed(1));
-  profile.savingsCost = Number((profile.savingsCost + costSavings).toFixed(1));
+  await saveProfile(userId, profile);
 
-  // Recalculate predictions
-  profile.predictedFootprintEco = Number((profile.predictedFootprintBAU - profile.savingsCO2).toFixed(1));
+  const recommendations = await getRecommendations(userId);
+  const rec = recommendations.find(r => r.id === recommendationId);
+  const pts = rec ? rec.points : 50;
 
-  // Award points
-  checkLevelUp(profile, pts);
+  await logAction(userId, "ACCEPT_RECOMMENDATION", { recommendationId, title: rec?.title });
+  const updatedProfile = await recalculateProfileMetrics(userId);
 
-  await saveProfile(profile);
   emitRealtimeEvent("recommendation.accepted", {
     message: `${rec?.title || "Recommendation"} accepted. +${pts} EcoPoints.`,
     recommendation: rec,
-    profile
+    profile: updatedProfile,
+    userId
   });
-  res.json({ status: "accepted", profile, recommendation: rec });
+  res.json({ status: "accepted", profile: updatedProfile, recommendation: rec });
 });
 
 // 7b. Carbon Twin saved scenarios
-app.get("/api/twin/scenarios", async (req, res) => {
-  const scenarios = await getTwinScenarios();
+app.get("/api/twin/scenarios", authMiddleware, async (req, res) => {
+  const scenarios = await getTwinScenarios(req.userId);
   res.json(scenarios);
 });
 
-app.post("/api/twin/scenarios", async (req, res) => {
+app.post("/api/twin/scenarios", authMiddleware, async (req, res) => {
   const { name, variables, calculations } = req.body;
   if (!variables || !calculations) {
     return res.status(400).json({ error: "variables and calculations are required." });
   }
 
-  const saved = await saveTwinScenario({ name, variables, calculations });
+  const userId = req.userId;
+  const saved = await saveTwinScenario(userId, { name, variables, calculations });
+  await logAction(userId, "SAVE_TWIN_SCENARIO", { name });
+
   emitRealtimeEvent("twin.synced", {
     message: `${saved.scenario.name} saved to your Carbon Twin. +10 EcoPoints.`,
     scenario: saved.scenario,
-    profile: saved.profile
+    profile: saved.profile,
+    userId
   });
   res.json({ status: "saved", ...saved });
 });
 
 // 8. Fetch Eco Challenges
-app.get("/api/challenges", async (req, res) => {
-  const list = await getChallenges();
+app.get("/api/challenges", authMiddleware, async (req, res) => {
+  const list = await getChallenges(req.userId);
   res.json(list);
 });
 
 // 9. Complete Challenge / Update Challenge Progress
-app.post("/api/challenges/complete", async (req, res) => {
+app.post("/api/challenges/complete", authMiddleware, async (req, res) => {
   const { challengeId } = req.body;
   if (!challengeId) {
     return res.status(400).json({ error: "challengeId is required." });
   }
 
-  const challenges = await getChallenges();
+  const userId = req.userId;
+  const challenges = await getChallenges(userId);
   const chal = challenges.find(c => c.id === challengeId);
   if (!chal) {
     return res.status(404).json({ error: "Challenge not found." });
@@ -582,45 +1042,38 @@ app.post("/api/challenges/complete", async (req, res) => {
     completedNow = true;
   }
 
-  await updateChallenge(challengeId, { progress: chal.progress, completed: chal.completed });
+  await updateChallenge(userId, challengeId, { progress: chal.progress, completed: chal.completed });
 
-  const profile = await getProfile();
+  const profile = await getProfile(userId);
   if (completedNow) {
-    checkLevelUp(profile, chal.points);
     profile.completedChallenges.push(challengeId);
-
-    // Add badge for specific achievements
-    if (chal.id === "ch-1" && !profile.badges.includes("Veggie Chef")) {
-      profile.badges.push("Veggie Chef");
-    } else if (chal.id === "ch-2" && !profile.badges.includes("Transit Hero")) {
-      profile.badges.push("Transit Hero");
-    } else if (chal.id === "ch-3" && !profile.badges.includes("Vampire Slayer")) {
-      profile.badges.push("Vampire Slayer");
-    }
-  } else {
-    // Award 5 points for incremental progress check-in
-    checkLevelUp(profile, 5);
+    await saveProfile(userId, profile);
   }
 
-  await saveProfile(profile);
+  const updatedProfile = await recalculateProfileMetrics(userId);
+  await logAction(userId, completedNow ? "COMPLETE_CHALLENGE" : "PROGRESS_CHALLENGE", { challengeId, title: chal.title });
+
   emitRealtimeEvent("challenge.progressed", {
     message: completedNow ? `${chal.title} completed!` : `${chal.title} progress checked in. +5 EcoPoints.`,
     challenge: chal,
-    profile,
-    completedNow
+    profile: updatedProfile,
+    completedNow,
+    userId
   });
-  res.json({ status: "progressed", challenge: chal, profile, completedNow });
+  res.json({ status: "progressed", challenge: chal, profile: updatedProfile, completedNow });
 });
 
 // 10. Fetch Leaderboard
-app.get("/api/leaderboard", async (req, res) => {
-  const profile = await getProfile();
+app.get("/api/leaderboard", authMiddleware, async (req, res) => {
+  const userId = req.userId;
+  const profile = await getProfile(userId);
 
   // Dynamically update user stats on leaderboard
   const updatedLeaderboard = memoryLeaderboard.map(user => {
     if (user.isCurrentUser) {
       return {
         ...user,
+        name: `${profile.studentName} (You)`,
         level: profile.level,
         points: profile.ecoPoints
       };
@@ -634,9 +1087,10 @@ app.get("/api/leaderboard", async (req, res) => {
 });
 
 // 11. AI Smart Receipt & Bill Scanner (OCR Estimation)
-app.post("/api/scan", upload.single("file"), async (req, res) => {
+app.post("/api/scan", authMiddleware, upload.single("file"), async (req, res) => {
   const filename = req.file ? req.file.originalname : "electricity_bill.pdf";
   let extractedText = "Mock receipt content";
+  const userId = req.userId;
 
   if (req.file && req.file.mimetype === "application/pdf") {
     let parser;
@@ -708,29 +1162,27 @@ app.post("/api/scan", upload.single("file"), async (req, res) => {
       cost: simulatedResult.totalCost,
       date: new Date().toISOString().split("T")[0]
     };
-    await addActivity(activity);
-
-    const profile = await getProfile();
-    profile.monthlyFootprint = Number((profile.monthlyFootprint + simulatedResult.totalCarbon).toFixed(1));
-    profile.predictedFootprintBAU = Number((profile.monthlyFootprint * 1.1).toFixed(1));
-    profile.predictedFootprintEco = Number((profile.predictedFootprintBAU - profile.savingsCO2).toFixed(1));
-    checkLevelUp(profile, 25); // 25 points bonus for OCR Scan!
+    await addActivity(userId, activity);
 
     // Inject recommendation dynamically into the local recommendations store
-    const isRecExisted = memoryRecommendations.some(r => r.title === simulatedResult.recommendation.title);
+    const recommendations = await getRecommendations(userId);
+    const isRecExisted = recommendations.some(r => r.title === simulatedResult.recommendation.title);
     if (!isRecExisted) {
-      memoryRecommendations.unshift({
+      recommendations.unshift({
         id: `rec-ocr-${Date.now()}`,
         ...simulatedResult.recommendation,
         category: simulatedResult.category
       });
     }
 
-    await saveProfile(profile);
+    const profile = await recalculateProfileMetrics(userId);
+    await logAction(userId, "OCR_SCAN", { filename, simulated: true, totalCarbon: activity.carbon });
+
     emitRealtimeEvent("scan.completed", {
       message: `${simulatedResult.title} scanned and logged. +25 EcoPoints.`,
       result: simulatedResult,
-      profile
+      profile,
+      userId
     });
     return res.json(simulatedResult);
   }
@@ -789,27 +1241,25 @@ Return ONLY a valid JSON object matching this schema:
       cost: Number(result.totalCost) || 0,
       date: new Date().toISOString().split("T")[0]
     };
-    await addActivity(activity);
-
-    const profile = await getProfile();
-    profile.monthlyFootprint = Number((profile.monthlyFootprint + activity.carbon).toFixed(1));
-    profile.predictedFootprintBAU = Number((profile.monthlyFootprint * 1.1).toFixed(1));
-    profile.predictedFootprintEco = Number((profile.predictedFootprintBAU - profile.savingsCO2).toFixed(1));
-    checkLevelUp(profile, 25);
+    await addActivity(userId, activity);
 
     if (result.recommendation) {
-      memoryRecommendations.unshift({
+      const recommendations = await getRecommendations(userId);
+      recommendations.unshift({
         id: `rec-ocr-${Date.now()}`,
         ...result.recommendation,
         category: result.category || "Lifestyle"
       });
     }
 
-    await saveProfile(profile);
+    const profile = await recalculateProfileMetrics(userId);
+    await logAction(userId, "OCR_SCAN", { filename, simulated: false, totalCarbon: activity.carbon });
+
     emitRealtimeEvent("scan.completed", {
       message: `${result.title || "Receipt"} scanned and logged. +25 EcoPoints.`,
       result,
-      profile
+      profile,
+      userId
     });
     res.json(result);
 
@@ -820,9 +1270,10 @@ Return ONLY a valid JSON object matching this schema:
 });
 
 // 12. AI Vision-Based Carbon Assessment (Image Classify & Recommendation)
-app.post("/api/vision", upload.single("file"), async (req, res) => {
+app.post("/api/vision", authMiddleware, upload.single("file"), async (req, res) => {
   const filename = req.file ? req.file.originalname : "appliance.jpg";
   const { description = "Household object photo" } = req.body;
+  const userId = req.userId;
 
   if (!hasGroqKey) {
     // Simulated vision classification falls back
@@ -874,19 +1325,14 @@ app.post("/api/vision", upload.single("file"), async (req, res) => {
       cost: simulatedResult.category === "Food" ? 14.0 : 0.0,
       date: new Date().toISOString().split("T")[0]
     };
-    await addActivity(activity);
-
-    const profile = await getProfile();
-    profile.monthlyFootprint = Number((profile.monthlyFootprint + activity.carbon).toFixed(1));
-    profile.predictedFootprintBAU = Number((profile.monthlyFootprint * 1.1).toFixed(1));
-    profile.predictedFootprintEco = Number((profile.predictedFootprintBAU - profile.savingsCO2).toFixed(1));
-    checkLevelUp(profile, 20); // 20 points vision scan bonus
+    await addActivity(userId, activity);
 
     // Inject first alternative as a recommendation
     const alt = simulatedResult.alternatives[0];
-    const isRecExisted = memoryRecommendations.some(r => r.title === alt.name);
+    const recommendations = await getRecommendations(userId);
+    const isRecExisted = recommendations.some(r => r.title === alt.name);
     if (!isRecExisted) {
-      memoryRecommendations.unshift({
+      recommendations.unshift({
         id: `rec-vis-${Date.now()}`,
         title: alt.name,
         description: alt.description,
@@ -898,11 +1344,14 @@ app.post("/api/vision", upload.single("file"), async (req, res) => {
       });
     }
 
-    await saveProfile(profile);
+    const profile = await recalculateProfileMetrics(userId);
+    await logAction(userId, "VISION_ASSESSMENT", { filename, simulated: true, objectName: simulatedResult.objectName });
+
     emitRealtimeEvent("vision.completed", {
       message: `${simulatedResult.objectName} assessed and logged. +20 EcoPoints.`,
       result: simulatedResult,
-      profile
+      profile,
+      userId
     });
     return res.json(simulatedResult);
   }
@@ -966,18 +1415,13 @@ Return ONLY a valid JSON object matching this schema:
       cost: 0,
       date: new Date().toISOString().split("T")[0]
     };
-    await addActivity(activity);
-
-    const profile = await getProfile();
-    profile.monthlyFootprint = Number((profile.monthlyFootprint + activity.carbon).toFixed(1));
-    profile.predictedFootprintBAU = Number((profile.monthlyFootprint * 1.1).toFixed(1));
-    profile.predictedFootprintEco = Number((profile.predictedFootprintBAU - profile.savingsCO2).toFixed(1));
-    checkLevelUp(profile, 20);
+    await addActivity(userId, activity);
 
     // Inject alternatives
     if (result.alternatives && result.alternatives.length > 0) {
+      const recommendations = await getRecommendations(userId);
       result.alternatives.forEach((alt, i) => {
-        memoryRecommendations.unshift({
+        recommendations.unshift({
           id: `rec-vis-${Date.now()}-${i}`,
           title: alt.name,
           description: alt.description,
@@ -990,11 +1434,14 @@ Return ONLY a valid JSON object matching this schema:
       });
     }
 
-    await saveProfile(profile);
+    const profile = await recalculateProfileMetrics(userId);
+    await logAction(userId, "VISION_ASSESSMENT", { filename, simulated: false, objectName: result.objectName });
+
     emitRealtimeEvent("vision.completed", {
       message: `${result.objectName || "Object"} assessed and logged. +20 EcoPoints.`,
       result,
-      profile
+      profile,
+      userId
     });
     res.json(result);
 
@@ -1005,15 +1452,18 @@ Return ONLY a valid JSON object matching this schema:
 });
 
 // 13. AI Personalized Coach Chat
-app.post("/api/coach/chat", async (req, res) => {
+app.post("/api/coach/chat", authMiddleware, async (req, res) => {
   const { message, history = [] } = req.body;
   if (!message) {
     return res.status(400).json({ error: "Message is required" });
   }
 
-  const profile = await getProfile();
-  const activities = await getActivities();
+  const userId = req.userId;
+  const profile = await getProfile(userId);
+  const activities = await getActivities(userId);
   const activitySummary = summarizeActivities(activities);
+
+  await logAction(userId, "COACH_CHAT", { messageLength: message.length });
 
   if (!hasGroqKey) {
     const defaultReplies = [

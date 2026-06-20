@@ -204,9 +204,9 @@ export default function AICoach() {
 
   return (
     <Box>
-      <Grid container spacing={3}>
+      <Grid container spacing={3} >
         {/* Left Column: Chat Assistant */}
-        <Grid item xs={12} md={7}>
+        <Grid  item xs={12} md={7}>
           <Paper
             sx={{
               p: 3,
@@ -218,6 +218,9 @@ export default function AICoach() {
               backgroundColor: "rgba(9, 18, 29, 0.65)",
               backdropFilter: "blur(10px)",
               border: "1px solid rgba(255,255,255,0.06)",
+              width:"78vw",
+              minWidth: "400px",
+            
             }}
           >
             <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>

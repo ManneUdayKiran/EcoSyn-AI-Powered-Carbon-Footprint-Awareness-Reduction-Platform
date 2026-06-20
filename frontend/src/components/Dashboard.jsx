@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
   Grid,
@@ -99,7 +99,14 @@ export default function Dashboard() {
 
   if (loading && !profile) {
     return (
-      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh" }}>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          minHeight: "60vh",
+        }}
+      >
         <CircularProgress color="primary" />
       </Box>
     );
@@ -136,14 +143,15 @@ export default function Dashboard() {
   };
 
   return (
-    <Box>
+    <Box sx={{ width: "100%" }}>
       {/* Onboarding Welcome Banner */}
       <Paper
         sx={{
           p: 3.5,
-          mb: 4,
+          mb: 2.5,
           borderRadius: 2,
-          background: "linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(6, 182, 212, 0.08) 100%)",
+          background:
+            "linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(6, 182, 212, 0.08) 100%)",
           border: "1px solid rgba(16, 185, 129, 0.18)",
           boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
           backdropFilter: "blur(12px)",
@@ -155,13 +163,21 @@ export default function Dashboard() {
         }}
       >
         <Box>
-          <Typography variant="h5" sx={{ fontWeight: 800, mb: 1, color: "#f8fafc" }}>
+          <Typography
+            variant="h5"
+            sx={{ fontWeight: 800, mb: 2, color: "#f8fafc" }}
+          >
             Welcome back, {safeProfile.studentName}! 🌿
           </Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 650 }}>
+          <Typography
+            variant="body1"
+            color="text.secondary"
+            sx={{ maxWidth: 650 }}
+          >
             Your ecological clone is synchronized. This month you have offset{" "}
             <strong>{safeProfile.savingsCO2} kg of CO₂</strong> and saved{" "}
-            <strong>${safeProfile.savingsCost}</strong>. Keep checking in to hit your target level!
+            <strong>${safeProfile.savingsCost}</strong>. Keep checking in to hit
+            your target level!
           </Typography>
         </Box>
         <Button
@@ -182,21 +198,41 @@ export default function Dashboard() {
       </Paper>
 
       {/* Grid of Metric Cards */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
+      <Grid container spacing={3.5} sx={{ mb: 2.5 }}>
         {/* Footprint Card */}
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ height: "100%", background: "rgba(9, 18, 29, 0.65)", backdropFilter: "blur(10px)" }}>
-            <CardContent>
-              <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
-                <Typography color="text.secondary" variant="body2" sx={{ fontWeight: 600 }}>
+        <Grid item xs={12} sm={7} md={4}>
+          <Card
+            sx={{
+              height: "100%",
+              background: "rgba(9, 18, 29, 0.65)",
+              backdropFilter: "blur(10px)",
+            }}
+          >
+            <CardContent sx={{ p: 2.5, "&:last-child": { pb: 3.5 } }}>
+              <Box
+                sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}
+              >
+                <Typography
+                  color="text.secondary"
+                  variant="body2"
+                  sx={{ fontWeight: 600 }}
+                >
                   Monthly Footprint
                 </Typography>
-                <Avatar sx={{ bgcolor: "rgba(239, 68, 68, 0.1)", color: "#ef4444" }}>
+                <Avatar
+                  sx={{ bgcolor: "rgba(239, 68, 68, 0.1)", color: "#ef4444" }}
+                >
                   <Co2RoundedIcon />
                 </Avatar>
               </Box>
-              <Typography variant="h4" sx={{ fontWeight: 800, color: "#f8fafc", mb: 1 }}>
-                {safeProfile.monthlyFootprint} <Typography component="span" variant="body2">kg CO₂</Typography>
+              <Typography
+                variant="h4"
+                sx={{ fontWeight: 800, color: "#f8fafc", mb: 1 }}
+              >
+                {safeProfile.monthlyFootprint}{" "}
+                <Typography component="span" variant="body2">
+                  kg CO₂
+                </Typography>
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 National average: ~400 kg / mo
@@ -207,10 +243,30 @@ export default function Dashboard() {
 
         {/* Sustainability Score Card */}
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ height: "100%", background: "rgba(9, 18, 29, 0.65)", backdropFilter: "blur(10px)" }}>
-            <CardContent sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-              <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
-                <Typography color="text.secondary" variant="body2" sx={{ fontWeight: 600 }}>
+          <Card
+            sx={{
+              height: "100%",
+              background: "rgba(9, 18, 29, 0.65)",
+              backdropFilter: "blur(10px)",
+            }}
+          >
+            <CardContent
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                height: "100%",
+                p: 2.5,
+                "&:last-child": { pb: 2.5 },
+              }}
+            >
+              <Box
+                sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}
+              >
+                <Typography
+                  color="text.secondary"
+                  variant="body2"
+                  sx={{ fontWeight: 600 }}
+                >
                   Sustainability Score
                 </Typography>
                 <Avatar
@@ -223,15 +279,27 @@ export default function Dashboard() {
                 </Avatar>
               </Box>
               <Box sx={{ display: "flex", alignItems: "baseline", mb: 1 }}>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: "#10b981" }}>
+                <Typography
+                  variant="h4"
+                  sx={{ fontWeight: 800, color: "#10b981" }}
+                >
                   {safeProfile.sustainabilityScore}
                 </Typography>
-                <Typography variant="h6" color="text.secondary" sx={{ ml: 0.5 }}>
+                <Typography
+                  variant="h6"
+                  color="text.secondary"
+                  sx={{ ml: 0.5 }}
+                >
                   /100
                 </Typography>
               </Box>
               <Typography variant="caption" color="text.secondary">
-                Grade: {safeProfile.sustainabilityScore >= 80 ? "A - Eco Champion" : safeProfile.sustainabilityScore >= 65 ? "B - Eco Citizen" : "C - Consumer"}
+                Grade:{" "}
+                {safeProfile.sustainabilityScore >= 80
+                  ? "A - Eco Champion"
+                  : safeProfile.sustainabilityScore >= 65
+                    ? "B - Eco Citizen"
+                    : "C - Consumer"}
               </Typography>
             </CardContent>
           </Card>
@@ -239,21 +307,42 @@ export default function Dashboard() {
 
         {/* CO2 Savings Card */}
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ height: "100%", background: "rgba(9, 18, 29, 0.65)", backdropFilter: "blur(10px)" }}>
-            <CardContent>
-              <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
-                <Typography color="text.secondary" variant="body2" sx={{ fontWeight: 600 }}>
+          <Card
+            sx={{
+              height: "100%",
+              background: "rgba(9, 18, 29, 0.65)",
+              backdropFilter: "blur(10px)",
+            }}
+          >
+            <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
+              <Box
+                sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}
+              >
+                <Typography
+                  color="text.secondary"
+                  variant="body2"
+                  sx={{ fontWeight: 600 }}
+                >
                   Carbon Savings
                 </Typography>
-                <Avatar sx={{ bgcolor: "rgba(6, 182, 212, 0.1)", color: "#06b6d4" }}>
+                <Avatar
+                  sx={{ bgcolor: "rgba(6, 182, 212, 0.1)", color: "#06b6d4" }}
+                >
                   <ParkRoundedIcon />
                 </Avatar>
               </Box>
-              <Typography variant="h4" sx={{ fontWeight: 800, color: "#06b6d4", mb: 1 }}>
-                -{safeProfile.savingsCO2} <Typography component="span" variant="body2">kg CO₂</Typography>
+              <Typography
+                variant="h4"
+                sx={{ fontWeight: 800, color: "#06b6d4", mb: 1 }}
+              >
+                -{safeProfile.savingsCO2}{" "}
+                <Typography component="span" variant="body2">
+                  kg CO₂
+                </Typography>
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                Equivalent to ~{Math.round(safeProfile.savingsCO2 / 1.5)} tree seedlings planted
+                Equivalent to ~{Math.round(safeProfile.savingsCO2 / 1.5)} tree
+                seedlings planted
               </Typography>
             </CardContent>
           </Card>
@@ -261,17 +350,34 @@ export default function Dashboard() {
 
         {/* Financial Savings Card */}
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ height: "100%", background: "rgba(9, 18, 29, 0.65)", backdropFilter: "blur(10px)" }}>
-            <CardContent>
-              <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
-                <Typography color="text.secondary" variant="body2" sx={{ fontWeight: 600 }}>
+          <Card
+            sx={{
+              height: "100%",
+              background: "rgba(9, 18, 29, 0.65)",
+              backdropFilter: "blur(10px)",
+            }}
+          >
+            <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
+              <Box
+                sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}
+              >
+                <Typography
+                  color="text.secondary"
+                  variant="body2"
+                  sx={{ fontWeight: 600 }}
+                >
                   Cost Savings
                 </Typography>
-                <Avatar sx={{ bgcolor: "rgba(245, 158, 11, 0.1)", color: "#f59e0b" }}>
+                <Avatar
+                  sx={{ bgcolor: "rgba(245, 158, 11, 0.1)", color: "#f59e0b" }}
+                >
                   <AttachMoneyRoundedIcon />
                 </Avatar>
               </Box>
-              <Typography variant="h4" sx={{ fontWeight: 800, color: "#f59e0b", mb: 1 }}>
+              <Typography
+                variant="h4"
+                sx={{ fontWeight: 800, color: "#f59e0b", mb: 1 }}
+              >
                 ${safeProfile.savingsCost}
               </Typography>
               <Typography variant="caption" color="text.secondary">
@@ -283,38 +389,82 @@ export default function Dashboard() {
       </Grid>
 
       {/* Main Charts Row */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
+      <Grid container spacing={3.5} sx={{ mb: 1.5 }}>
         {/* Trend Area Chart (Carbon Twin Prediction Engine) */}
-        <Grid item xs={12} md={8}>
-          <Paper sx={{ p: 3, borderRadius: 2, background: "rgba(9, 18, 29, 0.65)", backdropFilter: "blur(10px)", height: "100%" }}>
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2.5 }}>
+        <Grid item xs={12} md={9}>
+          <Paper
+            sx={{
+              p: 4.5,
+              borderRadius: 2,
+              background: "rgba(9, 18, 29, 0.65)",
+              backdropFilter: "blur(10px)",
+              height: "100%",
+            }}
+          >
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                mb: 2.5,
+              }}
+            >
               <Box>
                 <Typography variant="h6" sx={{ fontWeight: 700 }}>
                   Carbon Footprint Forecast (Carbon Twin)
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Visualizing emission targets comparing Business As Usual (BAU) vs Recommended adjustments
+                  Visualizing emission targets comparing Business As Usual (BAU)
+                  vs Recommended adjustments
                 </Typography>
               </Box>
-              <Chip label="AI Prediction Model" size="small" color="primary" variant="outlined" sx={{ fontWeight: 600 }} />
+              <Chip
+                label="AI Prediction Model"
+                size="small"
+                color="primary"
+                variant="outlined"
+                sx={{ fontWeight: 600 }}
+              />
             </Box>
-            <Box sx={{ height: 380, width: "100%" }}>
+            <Box sx={{ height: 420, width: "100%" }}>
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={trendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <AreaChart
+                  data={trendData}
+                  margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                >
                   <defs>
-                    <linearGradient id="colorFootprint" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient
+                      id="colorFootprint"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
                       <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2} />
                       <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="colorEco" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
+                      <stop
+                        offset="5%"
+                        stopColor="#10b981"
+                        stopOpacity={0.25}
+                      />
                       <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <XAxis dataKey="name" stroke="#64748b" style={{ fontSize: "0.75rem" }} />
+                  <XAxis
+                    dataKey="name"
+                    stroke="#64748b"
+                    style={{ fontSize: "0.75rem" }}
+                  />
                   <YAxis stroke="#64748b" style={{ fontSize: "0.75rem" }} />
                   <Tooltip
-                    contentStyle={{ backgroundColor: "#09121d", borderColor: "rgba(255,255,255,0.08)", borderRadius: 8, color: "#f8fafc" }}
+                    contentStyle={{
+                      backgroundColor: "#09121d",
+                      borderColor: "rgba(255,255,255,0.08)",
+                      borderRadius: 8,
+                      color: "#f8fafc",
+                    }}
                   />
                   <Area
                     type="monotone"
@@ -344,7 +494,9 @@ export default function Dashboard() {
                     fill="url(#colorEco)"
                     name="EcoSyn Targeted Reduction"
                   />
-                  <Legend wrapperStyle={{ fontSize: "0.8rem", paddingTop: 15 }} />
+                  <Legend
+                    wrapperStyle={{ fontSize: "0.8rem", paddingTop: 15 }}
+                  />
                 </AreaChart>
               </ResponsiveContainer>
             </Box>
@@ -352,18 +504,39 @@ export default function Dashboard() {
         </Grid>
 
         {/* Category breakdown (Pie Chart) */}
-        <Grid item xs={12} md={4}>
-          <Paper sx={{ p: 3, borderRadius: 2, background: "rgba(9, 18, 29, 0.65)", backdropFilter: "blur(10px)", height: "100%", display: "flex", flexDirection: "column" }}>
+        <Grid item sm={12} md={4}>
+          <Paper
+            sx={{
+              p: 4.5,
+              borderRadius: 2,
+              background: "rgba(9, 18, 29, 0.65)",
+              backdropFilter: "blur(10px)",
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
             <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>
               Category Breakdown
             </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ mb: 2.5 }}>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ mb: 2.5 }}
+            >
               Current Month Emissions (kg CO₂)
             </Typography>
 
             {pieData.length > 0 ? (
-              <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                <Box sx={{ height: 260, width: "100%", position: "relative" }}>
+              <Box
+                sx={{
+                  flexGrow: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                }}
+              >
+                <Box sx={{ height: 300, width: "100%", position: "relative" }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -380,7 +553,12 @@ export default function Dashboard() {
                         ))}
                       </Pie>
                       <Tooltip
-                        contentStyle={{ backgroundColor: "#09121d", borderColor: "rgba(255,255,255,0.08)", borderRadius: 8, color: "#f8fafc" }}
+                        contentStyle={{
+                          backgroundColor: "#09121d",
+                          borderColor: "rgba(255,255,255,0.08)",
+                          borderRadius: 8,
+                          color: "#f8fafc",
+                        }}
                         formatter={(value) => [`${value} kg CO₂`, "Footprint"]}
                       />
                     </PieChart>
@@ -395,7 +573,10 @@ export default function Dashboard() {
                       textAlign: "center",
                     }}
                   >
-                    <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1 }}>
+                    <Typography
+                      variant="h6"
+                      sx={{ fontWeight: 800, lineHeight: 1 }}
+                    >
                       {safeProfile.monthlyFootprint}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
@@ -404,10 +585,27 @@ export default function Dashboard() {
                   </Box>
                 </Box>
                 {/* Labels list */}
-                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1, mt: 2 }}>
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 1,
+                    mt: 2,
+                  }}
+                >
                   {pieData.map((entry) => (
-                    <Box key={entry.name} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                      <Box sx={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: entry.color }} />
+                    <Box
+                      key={entry.name}
+                      sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                    >
+                      <Box
+                        sx={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: "50%",
+                          backgroundColor: entry.color,
+                        }}
+                      />
                       <Typography variant="caption" sx={{ fontWeight: 600 }}>
                         {entry.name}: {entry.value} kg
                       </Typography>
@@ -416,7 +614,14 @@ export default function Dashboard() {
                 </Box>
               </Box>
             ) : (
-              <Box sx={{ flexGrow: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Box
+                sx={{
+                  flexGrow: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
                 <Typography color="text.secondary" variant="body2">
                   No logged activities for this period.
                 </Typography>
@@ -427,11 +632,28 @@ export default function Dashboard() {
       </Grid>
 
       {/* Activities Summary Table & Leaderboard Preview */}
-      <Grid container spacing={3}>
+      <Grid container spacing={1.5}>
         {/* Recent Activities Panel */}
         <Grid item xs={12} md={7}>
-          <Paper sx={{ p: 3, borderRadius: 2, background: "rgba(9, 18, 29, 0.65)", backdropFilter: "blur(10px)", height: "100%", display: "flex", flexDirection: "column" }}>
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2.5 }}>
+          <Paper
+            sx={{
+              p: 3.5,
+              borderRadius: 2,
+              background: "rgba(9, 18, 29, 0.65)",
+              backdropFilter: "blur(10px)",
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                mb: 2.5,
+              }}
+            >
               <Typography variant="h6" sx={{ fontWeight: 700 }}>
                 Recent Activities
               </Typography>
@@ -445,7 +667,15 @@ export default function Dashboard() {
                 View Logs
               </Button>
             </Box>
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, flexGrow: 1, justifyContent: "space-between" }}>
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 1,
+                flexGrow: 1,
+                justifyContent: "space-between",
+              }}
+            >
               {activities.slice(0, 4).map((act, index) => (
                 <Box
                   key={act.id || index}
@@ -460,11 +690,21 @@ export default function Dashboard() {
                   }}
                 >
                   <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                    <Avatar sx={{ bgcolor: "rgba(255,255,255,0.03)", color: "text.secondary", width: 40, height: 40 }}>
+                    <Avatar
+                      sx={{
+                        bgcolor: "rgba(255,255,255,0.03)",
+                        color: "text.secondary",
+                        width: 40,
+                        height: 40,
+                      }}
+                    >
                       {getCategoryIcon(act.category)}
                     </Avatar>
                     <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 700, color: "#f8fafc" }}>
+                      <Typography
+                        variant="body2"
+                        sx={{ fontWeight: 700, color: "#f8fafc" }}
+                      >
                         {act.description}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
@@ -473,7 +713,10 @@ export default function Dashboard() {
                     </Box>
                   </Box>
                   <Box sx={{ textAlign: "right" }}>
-                    <Typography variant="body2" sx={{ fontWeight: 800, color: "#ef4444" }}>
+                    <Typography
+                      variant="body2"
+                      sx={{ fontWeight: 800, color: "#ef4444" }}
+                    >
                       +{act.carbon} kg CO₂
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
@@ -483,7 +726,12 @@ export default function Dashboard() {
                 </Box>
               ))}
               {activities.length === 0 && (
-                <Typography color="text.secondary" variant="body2" align="center" sx={{ py: 4 }}>
+                <Typography
+                  color="text.secondary"
+                  variant="body2"
+                  align="center"
+                  sx={{ py: 4 }}
+                >
                   Log activities or scan receipts to populate database.
                 </Typography>
               )}
@@ -493,11 +741,23 @@ export default function Dashboard() {
 
         {/* Badges and gamification overview */}
         <Grid item xs={12} md={5}>
-          <Paper sx={{ p: 3, borderRadius: 2, background: "rgba(9, 18, 29, 0.65)", backdropFilter: "blur(10px)", height: "100%" }}>
+          <Paper
+            sx={{
+              p: 3.5,
+              borderRadius: 2,
+              background: "rgba(9, 18, 29, 0.65)",
+              backdropFilter: "blur(10px)",
+              height: "100%",
+            }}
+          >
             <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>
               Unlocked Achievements
             </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ mb: 3, display: "block" }}>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ mb: 3, display: "block" }}
+            >
               Badges earned through active ecological initiatives
             </Typography>
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
@@ -531,7 +791,10 @@ export default function Dashboard() {
                     🏆
                   </Box>
                   <Box>
-                    <Typography variant="body2" sx={{ fontWeight: 800, color: "#f8fafc" }}>
+                    <Typography
+                      variant="body2"
+                      sx={{ fontWeight: 800, color: "#f8fafc" }}
+                    >
                       {badge}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
@@ -542,11 +805,25 @@ export default function Dashboard() {
               ))}
             </Box>
             <Divider sx={{ my: 3, borderColor: "rgba(255,255,255,0.06)" }} />
-            <Box sx={{ p: 2, borderRadius: 1, background: "rgba(6, 182, 212, 0.05)", border: "1px solid rgba(6, 182, 212, 0.15)" }}>
-              <Typography variant="body2" sx={{ fontWeight: 700, color: "#06b6d4", mb: 0.5 }}>
+            <Box
+              sx={{
+                p: 2,
+                borderRadius: 1,
+                background: "rgba(6, 182, 212, 0.05)",
+                border: "1px solid rgba(6, 182, 212, 0.15)",
+              }}
+            >
+              <Typography
+                variant="body2"
+                sx={{ fontWeight: 700, color: "#06b6d4", mb: 0.5 }}
+              >
                 Level 3 Unlock Challenge:
               </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1.5 }}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ display: "block", mb: 1.5 }}
+              >
                 Accumulate 600 total EcoPoints and claim the Transit Hero badge.
               </Typography>
               <Button
@@ -556,7 +833,12 @@ export default function Dashboard() {
                 component={Link}
                 to="/challenges"
                 endIcon={<ArrowForwardRoundedIcon />}
-                sx={{ p: 0, fontWeight: 700, textTransform: "none", color: "#06b6d4" }}
+                sx={{
+                  p: 0,
+                  fontWeight: 700,
+                  textTransform: "none",
+                  color: "#06b6d4",
+                }}
               >
                 Go to Challenges
               </Button>
@@ -567,5 +849,3 @@ export default function Dashboard() {
     </Box>
   );
 }
-
-import { useMemo } from "react";
