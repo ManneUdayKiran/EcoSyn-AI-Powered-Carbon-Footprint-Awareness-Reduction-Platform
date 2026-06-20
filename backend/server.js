@@ -19,9 +19,20 @@ const allowedOrigins = process.env.CLIENT_URL
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
+    
+    // Match explicit allowed origins
     if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes("*")) {
       return callback(null, true);
     }
+    
+    // Dynamically match any Vercel deployment or localhost port
+    if (
+      (origin.startsWith("https://") && origin.endsWith(".vercel.app")) ||
+      /^http:\/\/localhost:\d+$/.test(origin)
+    ) {
+      return callback(null, true);
+    }
+    
     return callback(new Error("CORS policy blocked this request."), false);
   },
   credentials: true
