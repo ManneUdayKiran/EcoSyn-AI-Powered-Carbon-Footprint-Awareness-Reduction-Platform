@@ -8,7 +8,7 @@
     -apple-system,
     sans-serif;
   color: #e2e8f0;
-  background-color: #020617;
+  background-color: #02070e;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }
@@ -23,8 +23,32 @@ body {
   margin: 0;
   min-height: 100vh;
   background-image:
-    radial-gradient(circle at top, #312e81 0%, #020617 45%),
-    linear-gradient(180deg, #020617 0%, #0f172a 60%, #020617 100%);
+    radial-gradient(circle at 10% 20%, rgba(16, 185, 129, 0.05), transparent 35%),
+    linear-gradient(180deg, #02070e 0%, #09121d 60%, #02070e 100%);
+  background-color: #02070e;
+  color: #f8fafc;
+  transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1), color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Light Mode Overrides */
+body[data-theme="light"] {
+  color: #0f172a;
+  background-color: #f8fafc;
+  background-image:
+    radial-gradient(circle at 10% 20%, rgba(16, 185, 129, 0.03), transparent 35%),
+    linear-gradient(180deg, #f8fafc 0%, #f1f5f9 60%, #f8fafc 100%);
+}
+
+body[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+body[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(16, 185, 129, 0.45);
+}
+
+body[data-theme="light"] * {
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
 }
 
 #root {

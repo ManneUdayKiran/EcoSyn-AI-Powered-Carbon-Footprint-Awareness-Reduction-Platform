@@ -15,7 +15,6 @@ import {
   ListItem,
   ListItemText,
   Divider,
-  Snackbar,
   Alert,
   IconButton,
 } from "@mui/material";
@@ -26,16 +25,16 @@ import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import HelpOutlineRoundedIcon from "@mui/icons-material/HelpOutlineRounded";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import { api } from "../api/client";
+import { useNotification } from "../context/NotificationContext";
 
 export default function SmartScanner() {
+  const { showNotification } = useNotification();
   const [activeTab, setActiveTab] = useState(0);
   const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState(null);
   const [visionResult, setVisionResult] = useState(null);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState("");
   const fileInputRef = useRef(null);
 
   const handleTabChange = (event, newValue) => {
@@ -106,8 +105,7 @@ export default function SmartScanner() {
           headers: { "Content-Type": "multipart/form-data" },
         });
         setScanResult(res.data);
-        setSnackbarMessage("Receipt successfully categorized & logged to profile! +25 EcoPoints.");
-        setSnackbarOpen(true);
+        showNotification("Receipt successfully categorized & logged to profile! +25 EcoPoints.", "success");
       } else {
         // Vision Assessor
         formData.append("description", "Vision assessed object");
@@ -115,13 +113,11 @@ export default function SmartScanner() {
           headers: { "Content-Type": "multipart/form-data" },
         });
         setVisionResult(res.data);
-        setSnackbarMessage("Object identified successfully! Added to profile +20 EcoPoints.");
-        setSnackbarOpen(true);
+        showNotification("Object identified successfully! Added to profile +20 EcoPoints.", "success");
       }
     } catch (error) {
       console.error("Scan error", error);
-      setSnackbarMessage("Scanning failed. Please check the backend connection.");
-      setSnackbarOpen(true);
+      showNotification("Scanning failed. Please check the backend connection.", "error");
     } finally {
       setScanning(false);
     }
@@ -130,7 +126,7 @@ export default function SmartScanner() {
   return (
     <Box>
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" sx={{ fontWeight: 800, mb: 1, color: "#f8fafc" }}>
+        <Typography variant="h4" sx={{ fontWeight: 800, mb: 1, color: "text.primary" }}>
           AI Intelligent Scanner
         </Typography>
         <Typography variant="body1" color="text.secondary">
@@ -140,7 +136,7 @@ export default function SmartScanner() {
 
       <Paper
         sx={{
-          background: "rgba(9, 18, 29, 0.65)",
+          background: (theme) => theme.palette.mode === "dark" ? "rgba(9, 18, 29, 0.65)" : "rgba(255, 255, 255, 0.65)",
           backdropFilter: "blur(10px)",
           borderRadius: 2,
           mb: 4,
@@ -153,7 +149,7 @@ export default function SmartScanner() {
           indicatorColor="primary"
           textColor="primary"
           variant="fullWidth"
-          sx={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+          sx={{ borderBottom: (theme) => `1px solid ${theme.palette.mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}` }}
         >
           <Tab
             icon={<DocumentScannerRoundedIcon />}
@@ -175,8 +171,8 @@ export default function SmartScanner() {
             <Grid item xs={12} md={12} sx={{ display: "flex", flexDirection: "column" }}>
               <Paper
                 sx={{
-                  backgroundColor: "rgba(255, 255, 255, 0.015)",
-                  border: "1px solid rgba(255, 255, 255, 0.04)",
+                  backgroundColor: (theme) => theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.015)" : "rgba(0, 0, 0, 0.015)",
+                  border: (theme) => `1px solid ${theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.04)" : "rgba(0, 0, 0, 0.05)"}`,
                   borderRadius: 1,
                   p: 3,
                   height: "100%",
@@ -188,13 +184,22 @@ export default function SmartScanner() {
               >
                 <Box
                   onClick={() => fileInputRef.current.click()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      fileInputRef.current.click();
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Upload file receipt or bill"
                   sx={{
                     border: "2px dashed rgba(16, 185, 129, 0.25)",
                     borderRadius: 1,
                     p: 4,
                     textAlign: "center",
                     cursor: "pointer",
-                    backgroundColor: "rgba(255, 255, 255, 0.01)",
+                    backgroundColor: (theme) => theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.01)" : "rgba(0, 0, 0, 0.01)",
                     position: "relative",
                     overflow: "hidden",
                     flexGrow: 1,
@@ -207,6 +212,11 @@ export default function SmartScanner() {
                     "&:hover": {
                       borderColor: "primary.main",
                       backgroundColor: "rgba(16, 185, 129, 0.02)",
+                    },
+                    "&:focus-visible": {
+                      borderColor: "primary.main",
+                      outline: "2px solid #10b981",
+                      outlineOffset: "2px",
                     },
                   }}
                 >
@@ -321,7 +331,7 @@ export default function SmartScanner() {
                     {activeTab === 0 ? (
                       <>
                         <Chip
-                          label="📄 electric_utility_bill.pdf"
+                           label="📄 electric_utility_bill.pdf"
                           onClick={() => triggerMockFile("electricity_bill.pdf", "application/pdf")}
                           variant="outlined"
                           color="success"
@@ -369,8 +379,8 @@ export default function SmartScanner() {
             <Grid item xs={12} md={12} sx={{ display: "flex", flexDirection: "column" }}>
               <Paper
                 sx={{
-                  backgroundColor: "rgba(255, 255, 255, 0.015)",
-                  border: "1px solid rgba(255, 255, 255, 0.04)",
+                  backgroundColor: (theme) => theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.015)" : "rgba(0, 0, 0, 0.015)",
+                  border: (theme) => `1px solid ${theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.04)" : "rgba(0, 0, 0, 0.05)"}`,
                   borderRadius: 1,
                   p: 3,
                   height: "100%",
@@ -414,7 +424,7 @@ export default function SmartScanner() {
                       <Chip label={scanResult.category} size="small" color="primary" sx={{ fontWeight: 700 }} />
                     </Box>
 
-                    <Divider sx={{ my: 1.5, borderColor: "rgba(255,255,255,0.06)" }} />
+                    <Divider sx={{ my: 1.5, borderColor: (theme) => theme.palette.mode === 'dark' ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)" }} />
 
                     <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>
                       Itemized Breakdown
@@ -440,7 +450,7 @@ export default function SmartScanner() {
                       ))}
                     </List>
 
-                    <Divider sx={{ my: 1.5, borderColor: "rgba(255,255,255,0.06)" }} />
+                    <Divider sx={{ my: 1.5, borderColor: (theme) => theme.palette.mode === 'dark' ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)" }} />
 
                     <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
                       <Box>
@@ -473,7 +483,7 @@ export default function SmartScanner() {
                         <Typography variant="body2" sx={{ fontWeight: 800, color: "primary.main", mb: 0.5 }}>
                           🌱 Coach Recommendation Generated:
                         </Typography>
-                        <Typography variant="caption" sx={{ fontWeight: 700, display: "block", color: "#fff", mb: 0.5 }}>
+                        <Typography variant="caption" sx={{ fontWeight: 700, display: "block", color: "text.primary", mb: 0.5 }}>
                           {scanResult.recommendation.title}
                         </Typography>
                         <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
@@ -499,7 +509,7 @@ export default function SmartScanner() {
                       <Chip label={visionResult.category} size="small" color="primary" sx={{ fontWeight: 700 }} />
                     </Box>
 
-                    <Divider sx={{ my: 1.5, borderColor: "rgba(255,255,255,0.06)" }} />
+                    <Divider sx={{ my: 1.5, borderColor: (theme) => theme.palette.mode === 'dark' ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)" }} />
 
                     <Grid container spacing={2} sx={{ mb: 2.5 }}>
                       <Grid item xs={6}>
@@ -539,8 +549,8 @@ export default function SmartScanner() {
                           sx={{
                             p: 2,
                             borderRadius: 2.5,
-                            backgroundColor: "rgba(255, 255, 255, 0.015)",
-                            border: "1px solid rgba(255, 255, 255, 0.04)",
+                            backgroundColor: (theme) => theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.015)" : "rgba(0, 0, 0, 0.015)",
+                            border: (theme) => `1px solid ${theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.04)" : "rgba(0, 0, 0, 0.05)"}`,
                           }}
                         >
                           <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
@@ -580,16 +590,6 @@ export default function SmartScanner() {
         }
       `}</style>
 
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={4000}
-        onClose={() => setSnackbarOpen(false)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-      >
-        <Alert severity="success" sx={{ width: "100%" }}>
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
     </Box>
   );
 }

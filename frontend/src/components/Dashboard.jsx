@@ -13,6 +13,7 @@ import {
   Divider,
   LinearProgress,
   CircularProgress,
+  useTheme,
 } from "@mui/material";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import ParkRoundedIcon from "@mui/icons-material/ParkRounded";
@@ -45,6 +46,7 @@ const COLORS = {
 };
 
 export default function Dashboard() {
+  const theme = useTheme();
   const [profile, setProfile] = useState(null);
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -64,8 +66,20 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 3000);
-    return () => clearInterval(interval);
+
+    // Refetch data when window is focused to maintain accuracy without persistent polling
+    const handleFocus = () => {
+      fetchData();
+    };
+    window.addEventListener("focus", handleFocus);
+
+    // Keep a slow 30-second background poll as a fallback
+    const interval = setInterval(fetchData, 30000);
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      clearInterval(interval);
+    };
   }, []);
 
   // Compute category breakdown from activity logs
@@ -152,8 +166,8 @@ export default function Dashboard() {
           borderRadius: 2,
           background:
             "linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(6, 182, 212, 0.08) 100%)",
-          border: "1px solid rgba(16, 185, 129, 0.18)",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
+          border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? "rgba(16, 185, 129, 0.18)" : "rgba(16, 185, 129, 0.25)"}`,
+          boxShadow: (theme) => theme.palette.mode === 'dark' ? "0 8px 32px rgba(0,0,0,0.2)" : "0 8px 32px rgba(0,0,0,0.05)",
           backdropFilter: "blur(12px)",
           display: "flex",
           flexDirection: { xs: "column", md: "row" },
@@ -165,7 +179,7 @@ export default function Dashboard() {
         <Box>
           <Typography
             variant="h5"
-            sx={{ fontWeight: 800, mb: 2, color: "#f8fafc" }}
+            sx={{ fontWeight: 800, mb: 2, color: "text.primary" }}
           >
             Welcome back, {safeProfile.studentName}! 🌿
           </Typography>
@@ -204,7 +218,7 @@ export default function Dashboard() {
           <Card
             sx={{
               height: "100%",
-              background: "rgba(9, 18, 29, 0.65)",
+              backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(9, 18, 29, 0.65)" : "rgba(255, 255, 255, 0.65)",
               backdropFilter: "blur(10px)",
             }}
           >
@@ -227,7 +241,7 @@ export default function Dashboard() {
               </Box>
               <Typography
                 variant="h4"
-                sx={{ fontWeight: 800, color: "#f8fafc", mb: 1 }}
+                sx={{ fontWeight: 800, color: "text.primary", mb: 1 }}
               >
                 {safeProfile.monthlyFootprint}{" "}
                 <Typography component="span" variant="body2">
@@ -246,7 +260,7 @@ export default function Dashboard() {
           <Card
             sx={{
               height: "100%",
-              background: "rgba(9, 18, 29, 0.65)",
+              backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(9, 18, 29, 0.65)" : "rgba(255, 255, 255, 0.65)",
               backdropFilter: "blur(10px)",
             }}
           >
@@ -310,7 +324,7 @@ export default function Dashboard() {
           <Card
             sx={{
               height: "100%",
-              background: "rgba(9, 18, 29, 0.65)",
+              backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(9, 18, 29, 0.65)" : "rgba(255, 255, 255, 0.65)",
               backdropFilter: "blur(10px)",
             }}
           >
@@ -341,8 +355,7 @@ export default function Dashboard() {
                 </Typography>
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                Equivalent to ~{Math.round(safeProfile.savingsCO2 / 1.5)} tree
-                seedlings planted
+                Equivalent to ~{Math.round(safeProfile.savingsCO2 / 1.5)} seedlings
               </Typography>
             </CardContent>
           </Card>
@@ -353,7 +366,7 @@ export default function Dashboard() {
           <Card
             sx={{
               height: "100%",
-              background: "rgba(9, 18, 29, 0.65)",
+              backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(9, 18, 29, 0.65)" : "rgba(255, 255, 255, 0.65)",
               backdropFilter: "blur(10px)",
             }}
           >
@@ -381,7 +394,7 @@ export default function Dashboard() {
                 ${safeProfile.savingsCost}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                Cumulative household utility savings
+                Utility savings
               </Typography>
             </CardContent>
           </Card>
@@ -396,8 +409,9 @@ export default function Dashboard() {
             sx={{
               p: 4.5,
               borderRadius: 2,
-              background: "rgba(9, 18, 29, 0.65)",
+              backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(9, 18, 29, 0.65)" : "rgba(255, 255, 255, 0.65)",
               backdropFilter: "blur(10px)",
+              border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.06)"}`,
               height: "100%",
             }}
           >
@@ -411,11 +425,10 @@ export default function Dashboard() {
             >
               <Box>
                 <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  Carbon Footprint Forecast (Carbon Twin)
+                  Carbon Footprint Forecast
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Visualizing emission targets comparing Business As Usual (BAU)
-                  vs Recommended adjustments
+                  Target levels comparing Business As Usual (BAU) vs Recommended adjustments
                 </Typography>
               </Box>
               <Chip
@@ -433,7 +446,7 @@ export default function Dashboard() {
                   margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
                 >
                   <defs>
-                    <linearGradient
+                     <linearGradient
                       id="colorFootprint"
                       x1="0"
                       y1="0"
@@ -460,10 +473,10 @@ export default function Dashboard() {
                   <YAxis stroke="#64748b" style={{ fontSize: "0.75rem" }} />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: "#09121d",
-                      borderColor: "rgba(255,255,255,0.08)",
+                      backgroundColor: theme.palette.mode === "dark" ? "#09121d" : "#ffffff",
+                      borderColor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
                       borderRadius: 8,
-                      color: "#f8fafc",
+                      color: theme.palette.mode === "dark" ? "#f8fafc" : "#0f172a",
                     }}
                   />
                   <Area
@@ -504,13 +517,14 @@ export default function Dashboard() {
         </Grid>
 
         {/* Category breakdown (Pie Chart) */}
-        <Grid item sm={12} md={4}>
+        <Grid item sm={12} md={3}>
           <Paper
             sx={{
               p: 4.5,
               borderRadius: 2,
-              background: "rgba(9, 18, 29, 0.65)",
+              backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(9, 18, 29, 0.65)" : "rgba(255, 255, 255, 0.65)",
               backdropFilter: "blur(10px)",
+              border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.06)"}`,
               height: "100%",
               display: "flex",
               flexDirection: "column",
@@ -524,7 +538,7 @@ export default function Dashboard() {
               color="text.secondary"
               sx={{ mb: 2.5 }}
             >
-              Current Month Emissions (kg CO₂)
+              Current Month (kg CO₂)
             </Typography>
 
             {pieData.length > 0 ? (
@@ -554,10 +568,10 @@ export default function Dashboard() {
                       </Pie>
                       <Tooltip
                         contentStyle={{
-                          backgroundColor: "#09121d",
-                          borderColor: "rgba(255,255,255,0.08)",
+                          backgroundColor: theme.palette.mode === "dark" ? "#09121d" : "#ffffff",
+                          borderColor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
                           borderRadius: 8,
-                          color: "#f8fafc",
+                          color: theme.palette.mode === "dark" ? "#f8fafc" : "#0f172a",
                         }}
                         formatter={(value) => [`${value} kg CO₂`, "Footprint"]}
                       />
@@ -623,7 +637,7 @@ export default function Dashboard() {
                 }}
               >
                 <Typography color="text.secondary" variant="body2">
-                  No logged activities for this period.
+                  No logged activities yet.
                 </Typography>
               </Box>
             )}
@@ -632,15 +646,16 @@ export default function Dashboard() {
       </Grid>
 
       {/* Activities Summary Table & Leaderboard Preview */}
-      <Grid container spacing={1.5}>
+      <Grid container spacing={3.5}>
         {/* Recent Activities Panel */}
         <Grid item xs={12} md={7}>
           <Paper
             sx={{
               p: 3.5,
               borderRadius: 2,
-              background: "rgba(9, 18, 29, 0.65)",
+              backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(9, 18, 29, 0.65)" : "rgba(255, 255, 255, 0.65)",
               backdropFilter: "blur(10px)",
+              border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.06)"}`,
               height: "100%",
               display: "flex",
               flexDirection: "column",
@@ -685,14 +700,14 @@ export default function Dashboard() {
                     justifyContent: "space-between",
                     p: 1.75,
                     borderRadius: 1,
-                    backgroundColor: "rgba(255,255,255,0.015)",
-                    border: "1px solid rgba(255,255,255,0.03)",
+                    backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(255,255,255,0.015)" : "rgba(0, 0, 0, 0.015)",
+                    border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? "rgba(255,255,255,0.03)" : "rgba(0, 0, 0, 0.05)"}`,
                   }}
                 >
                   <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                     <Avatar
                       sx={{
-                        bgcolor: "rgba(255,255,255,0.03)",
+                        backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(255,255,255,0.03)" : "rgba(0, 0, 0, 0.03)",
                         color: "text.secondary",
                         width: 40,
                         height: 40,
@@ -703,7 +718,7 @@ export default function Dashboard() {
                     <Box>
                       <Typography
                         variant="body2"
-                        sx={{ fontWeight: 700, color: "#f8fafc" }}
+                        sx={{ fontWeight: 700, color: "text.primary" }}
                       >
                         {act.description}
                       </Typography>
@@ -732,7 +747,7 @@ export default function Dashboard() {
                   align="center"
                   sx={{ py: 4 }}
                 >
-                  Log activities or scan receipts to populate database.
+                  Log activities to populate database.
                 </Typography>
               )}
             </Box>
@@ -745,8 +760,9 @@ export default function Dashboard() {
             sx={{
               p: 3.5,
               borderRadius: 2,
-              background: "rgba(9, 18, 29, 0.65)",
+              backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(9, 18, 29, 0.65)" : "rgba(255, 255, 255, 0.65)",
               backdropFilter: "blur(10px)",
+              border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.06)"}`,
               height: "100%",
             }}
           >
@@ -793,7 +809,7 @@ export default function Dashboard() {
                   <Box>
                     <Typography
                       variant="body2"
-                      sx={{ fontWeight: 800, color: "#f8fafc" }}
+                      sx={{ fontWeight: 800, color: "text.primary" }}
                     >
                       {badge}
                     </Typography>
@@ -804,7 +820,7 @@ export default function Dashboard() {
                 </Box>
               ))}
             </Box>
-            <Divider sx={{ my: 3, borderColor: "rgba(255,255,255,0.06)" }} />
+            <Divider sx={{ my: 3, borderColor: (theme) => theme.palette.mode === 'dark' ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)" }} />
             <Box
               sx={{
                 p: 2,

@@ -19,7 +19,6 @@ import {
   Avatar,
   IconButton,
   Grid,
-  Snackbar,
   Alert,
 } from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
@@ -31,6 +30,7 @@ import ShoppingBagRoundedIcon from "@mui/icons-material/ShoppingBagRounded";
 import Co2RoundedIcon from "@mui/icons-material/Co2Rounded";
 import AttachMoneyRoundedIcon from "@mui/icons-material/AttachMoneyRounded";
 import { api } from "../api/client";
+import { useNotification } from "../context/NotificationContext";
 
 const CATEGORIES = [
   { value: "Electricity", label: "Electricity Usage" },
@@ -49,9 +49,9 @@ const COLORS = {
 };
 
 export default function ActivityLog() {
+  const { showNotification } = useNotification();
   const [activities, setActivities] = useState([]);
   const [openDialog, setOpenDialog] = useState(false);
-  const [alert, setAlert] = useState(null);
 
   // Form State
   const [category, setCategory] = useState("Transport");
@@ -71,10 +71,16 @@ export default function ActivityLog() {
   };
 
   useEffect(() => {
-    const initialLoad = setTimeout(fetchActivities, 0);
-    const interval = setInterval(fetchActivities, 3000);
+    fetchActivities();
+
+    const handleFocus = () => {
+      fetchActivities();
+    };
+    window.addEventListener("focus", handleFocus);
+
+    const interval = setInterval(fetchActivities, 30000);
     return () => {
-      clearTimeout(initialLoad);
+      window.removeEventListener("focus", handleFocus);
       clearInterval(interval);
     };
   }, []);
@@ -130,7 +136,7 @@ export default function ActivityLog() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!description.trim() || !category) {
-      setAlert({ severity: "warning", message: "Please enter a description." });
+      showNotification("Please enter a description.", "warning");
       return;
     }
 
@@ -144,12 +150,12 @@ export default function ActivityLog() {
         date,
       });
 
-      setAlert({ severity: "success", message: "Activity successfully logged to Carbon Twin! +15 EcoPoints." });
+      showNotification("Activity successfully logged to Carbon Twin! +15 EcoPoints.", "success");
       fetchActivities();
       handleCloseDialog();
     } catch (error) {
       console.error("Failed to log activity", error);
-      setAlert({ severity: "error", message: "Failed to log activity." });
+      showNotification("Failed to log activity.", "error");
     }
   };
 
@@ -170,15 +176,16 @@ export default function ActivityLog() {
 
   return (
     <Box>
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4 }}>
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 800, mb: 1, color: "#f8fafc" }}>
-            Carbon Activity Logs
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Keep track of historical emissions. Add travel, meals, utilities, or clothes shopping records to balance your profile.
-          </Typography>
-        </Box>
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h4" sx={{ fontWeight: 800, mb: 1, color: "text.primary" }}>
+          Carbon Activity Logs
+        </Typography>
+        <Typography variant="body1" color="text.secondary">
+          Keep track of historical emissions. Add travel, meals, utilities, or clothes shopping records to balance your profile.
+        </Typography>
+      </Box>
+
+      <Box sx={{ mb: 3, display: "flex", justifyContent: "flex-end" }}>
         <Button
           variant="contained"
           color="primary"
@@ -194,15 +201,15 @@ export default function ActivityLog() {
       <TableContainer
         component={Paper}
         sx={{
-          background: "rgba(9, 18, 29, 0.65)",
+          backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(9, 18, 29, 0.65)" : "rgba(255, 255, 255, 0.65)",
           backdropFilter: "blur(10px)",
           borderRadius: 2,
-          border: "1px solid rgba(255, 255, 255, 0.05)",
+          border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.06)"}`,
           overflow: "hidden",
         }}
       >
         <Table>
-          <TableHead sx={{ backgroundColor: "rgba(255, 255, 255, 0.015)" }}>
+          <TableHead sx={{ backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.015)" : "rgba(0, 0, 0, 0.015)" }}>
             <TableRow>
               <TableCell sx={{ fontWeight: 700, color: "text.secondary" }}>Category</TableCell>
               <TableCell sx={{ fontWeight: 700, color: "text.secondary" }}>Description</TableCell>
@@ -217,13 +224,13 @@ export default function ActivityLog() {
               <TableRow
                 key={act.id || index}
                 sx={{
-                  "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.01)" },
-                  borderBottom: "1px solid rgba(255, 255, 255, 0.03)",
+                  "&:hover": { backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.01)" : "rgba(0, 0, 0, 0.01)" },
+                  borderBottom: (theme) => `1px solid ${theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.03)" : "rgba(0, 0, 0, 0.05)"}`,
                 }}
               >
                 <TableCell sx={{ py: 2 }}>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                    <Avatar sx={{ bgcolor: "rgba(255, 255, 255, 0.02)", width: 36, height: 36 }}>
+                    <Avatar sx={{ bgcolor: (theme) => theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.02)" : "rgba(0, 0, 0, 0.03)", width: 36, height: 36 }}>
                       {getCategoryIcon(act.category)}
                     </Avatar>
                     <Typography variant="body2" sx={{ fontWeight: 700 }}>
@@ -231,7 +238,7 @@ export default function ActivityLog() {
                     </Typography>
                   </Box>
                 </TableCell>
-                <TableCell sx={{ color: "#fff", fontWeight: 600 }}>{act.description}</TableCell>
+                <TableCell sx={{ color: "text.primary", fontWeight: 600 }}>{act.description}</TableCell>
                 <TableCell sx={{ color: "text.secondary" }}>{act.amount}</TableCell>
                 <TableCell sx={{ color: "error.main", fontWeight: 800 }}>+{act.carbon} kg CO₂</TableCell>
                 <TableCell sx={{ color: "warning.main", fontWeight: 700 }}>
@@ -252,8 +259,8 @@ export default function ActivityLog() {
       </TableContainer>
 
       {/* Manual Entry Dialog */}
-      <Dialog open={openDialog} onClose={handleCloseDialog} PaperProps={{ sx: { borderRadius: 2, bgcolor: "#09121d", maxWidth: 500, width: "100%" } }}>
-        <DialogTitle sx={{ fontWeight: 800, color: "#f8fafc" }}>
+      <Dialog open={openDialog} onClose={handleCloseDialog} PaperProps={{ sx: { borderRadius: 2, backgroundColor: "background.paper", maxWidth: 500, width: "100%" } }}>
+        <DialogTitle sx={{ fontWeight: 800, color: "text.primary" }}>
           Log Carbon Activity
         </DialogTitle>
         <form onSubmit={handleSubmit}>
@@ -344,19 +351,6 @@ export default function ActivityLog() {
           </DialogActions>
         </form>
       </Dialog>
-
-      <Snackbar
-        open={Boolean(alert)}
-        autoHideDuration={4000}
-        onClose={() => setAlert(null)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-      >
-        {alert && (
-          <Alert severity={alert.severity} onClose={() => setAlert(null)} sx={{ width: "100%" }}>
-            {alert.message}
-          </Alert>
-        )}
-      </Snackbar>
     </Box>
   );
 }

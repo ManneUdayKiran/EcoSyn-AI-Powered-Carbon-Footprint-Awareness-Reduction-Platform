@@ -124,7 +124,7 @@ export default function CarbonTwin() {
       <Box sx={{ mb: 4 }}>
         <Typography
           variant="h4"
-          sx={{ fontWeight: 800, mb: 1, color: "#f8fafc" }}
+          sx={{ fontWeight: 800, mb: 1, color: "text.primary" }}
         >
           Carbon Twin Simulator
         </Typography>
@@ -135,7 +135,7 @@ export default function CarbonTwin() {
         </Typography>
       </Box>
 
-      <Grid container spacing={0.5} sx={{ width: "100%" }}>
+      <Grid container spacing={3} sx={{ width: "100%" }}>
         {/* Left Input Sliders */}
         <Grid
           item
@@ -147,7 +147,7 @@ export default function CarbonTwin() {
             sx={{
               p: 3,
               borderRadius: 2,
-              background: "rgba(9, 18, 29, 0.65)",
+              backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(9, 18, 29, 0.65)" : "rgba(255, 255, 255, 0.65)",
               backdropFilter: "blur(10px)",
               height: "100%",
               display: "flex",
@@ -338,16 +338,15 @@ export default function CarbonTwin() {
         {/* Right Digital Twin Visualization */}
         <Grid
           item
-          xs={6}
-          md={3}
+          xs={12}
+          md={6}
           sx={{ display: "flex", flexDirection: "column", justifyContent: "space-between" }}
-          
         >
           <Paper
             sx={{
               p: 3,
               borderRadius: 2,
-              background: "rgba(9, 18, 29, 0.65)",
+              backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(9, 18, 29, 0.65)" : "rgba(255, 255, 255, 0.65)",
               backdropFilter: "blur(10px)",
               display: "flex",
               flexDirection: "column",
@@ -372,7 +371,7 @@ export default function CarbonTwin() {
                   width: 220,
                   height: 220,
                   borderRadius: "50%",
-                  backgroundColor: "rgba(255, 255, 255, 0.02)",
+                  backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.02)" : "rgba(0, 0, 0, 0.02)",
                   border: `3px solid ${twinColor}`,
                   boxShadow: `0 0 20px ${twinColor}, inset 0 0 20px ${twinColor}`,
                   display: "flex",
@@ -409,9 +408,9 @@ export default function CarbonTwin() {
                 <Grid item xs={6}>
                   <Card
                     sx={{
-                      bgcolor: "rgba(255,255,255,0.01)",
+                      backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(255,255,255,0.01)" : "rgba(0, 0, 0, 0.015)",
                       textAlign: "center",
-                      border: "1px solid rgba(255,255,255,0.03)",
+                      border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? "rgba(255,255,255,0.03)" : "rgba(0, 0, 0, 0.05)"}`,
                     }}
                   >
                     <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
@@ -430,9 +429,9 @@ export default function CarbonTwin() {
                 <Grid item xs={6}>
                   <Card
                     sx={{
-                      bgcolor: "rgba(255,255,255,0.01)",
+                      backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(255,255,255,0.01)" : "rgba(0, 0, 0, 0.015)",
                       textAlign: "center",
-                      border: "1px solid rgba(255,255,255,0.03)",
+                      border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? "rgba(255,255,255,0.03)" : "rgba(0, 0, 0, 0.05)"}`,
                     }}
                   >
                     <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
@@ -482,7 +481,7 @@ export default function CarbonTwin() {
               )}
             </Box>
 
-            <Divider sx={{ my: 3, borderColor: "rgba(255,255,255,0.06)" }} />
+            <Divider sx={{ my: 3, borderColor: (theme) => theme.palette.mode === 'dark' ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)" }} />
 
             <Box>
               <Typography variant="body2" sx={{ fontWeight: 800, mb: 1 }}>
@@ -493,8 +492,8 @@ export default function CarbonTwin() {
                   <Card
                     key={scenario.id}
                     sx={{
-                      bgcolor: "rgba(255,255,255,0.015)",
-                      border: "1px solid rgba(255,255,255,0.04)",
+                      backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(255,255,255,0.015)" : "rgba(0, 0, 0, 0.015)",
+                      border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? "rgba(255,255,255,0.04)" : "rgba(0, 0, 0, 0.05)"}`,
                     }}
                   >
                     <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
@@ -507,7 +506,7 @@ export default function CarbonTwin() {
                       >
                         <Typography
                           variant="caption"
-                          sx={{ fontWeight: 800, color: "#f8fafc" }}
+                          sx={{ fontWeight: 800, color: "text.primary" }}
                         >
                           {scenario.name}
                         </Typography>
@@ -531,7 +530,7 @@ export default function CarbonTwin() {
                 ))}
                 {scenarios.length === 0 && (
                   <Typography variant="caption" color="text.secondary">
-                    Save a scenario to build your personal carbon playbook.
+                    Save a scenario to build your playbook.
                   </Typography>
                 )}
               </Stack>
@@ -543,9 +542,9 @@ export default function CarbonTwin() {
       {/* CSS Animation keyframe definition */}
       <style>{`
         @keyframes pulseShadow {
-          0% { transform: scale(1); box-shadow: 0 0 16px \${twinColor}, inset 0 0 16px \${twinColor}; }
-          50% { transform: scale(1.02); box-shadow: 0 0 28px \${twinColor}, inset 0 0 28px \${twinColor}; }
-          100% { transform: scale(1); box-shadow: 0 0 16px \${twinColor}, inset 0 0 16px \${twinColor}; }
+          0% { transform: scale(1); box-shadow: 0 0 16px ${twinColor}, inset 0 0 16px ${twinColor}; }
+          50% { transform: scale(1.02); box-shadow: 0 0 28px ${twinColor}, inset 0 0 28px ${twinColor}; }
+          100% { transform: scale(1); box-shadow: 0 0 16px ${twinColor}, inset 0 0 16px ${twinColor}; }
         }
       `}</style>
     </Box>

@@ -606,7 +606,7 @@ app.post("/api/auth/signup", async (req, res) => {
       return res.status(201).json({ status: "success", token, user: { email: user.email, id: user._id }, profile });
     } else {
       // Memory Store Fallback
-      const mockId = `mock-user-${Date.now()}`;
+      const mockId = `mock-user-${email.toLowerCase().replace(/[^a-z0-9]/g, "")}`;
       const name = studentName || email.split("@")[0];
       const profile = await getProfile(mockId, name);
       
@@ -694,6 +694,25 @@ app.get("/api/profile", authMiddleware, async (req, res) => {
 app.post("/api/profile/onboard", authMiddleware, async (req, res) => {
   const { travel, diet, electricity, shopping } = req.body;
   const userId = req.userId;
+
+  // Input Validation for Hackathon Security
+  const validTravel = ["car", "bike", "public", "cycle"];
+  const validDiet = ["vegetarian", "mixed", "heavy_meat"];
+
+  if (!validTravel.includes(travel)) {
+    return res.status(400).json({ error: "Invalid travel option. Must be car, bike, public, or cycle." });
+  }
+  if (!validDiet.includes(diet)) {
+    return res.status(400).json({ error: "Invalid diet option. Must be vegetarian, mixed, or heavy_meat." });
+  }
+  const elecNum = Number(electricity);
+  if (isNaN(elecNum) || elecNum < 100 || elecNum > 1000) {
+    return res.status(400).json({ error: "Invalid electricity units. Must be a number between 100 and 1000." });
+  }
+  const shopNum = Number(shopping);
+  if (isNaN(shopNum) || shopNum < 0 || shopNum > 10) {
+    return res.status(400).json({ error: "Invalid shopping frequency. Must be a number between 0 and 10." });
+  }
 
   // Clear existing activities first to ensure onboarding sets a clean baseline
   if (isMongoConnected) {

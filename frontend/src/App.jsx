@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useContext } from "react";
 import {
   BrowserRouter,
   Routes,
@@ -31,6 +31,7 @@ import {
   DialogContent,
   DialogActions,
   TextField,
+  useTheme,
 } from "@mui/material";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 import SpaceDashboardRoundedIcon from "@mui/icons-material/SpaceDashboardRounded";
@@ -41,6 +42,8 @@ import EmojiEventsRoundedIcon from "@mui/icons-material/EmojiEventsRounded";
 import HistoryRoundedIcon from "@mui/icons-material/HistoryRounded";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
+import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
+import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
 
 import Dashboard from "./components/Dashboard";
 import SmartScanner from "./components/SmartScanner";
@@ -51,6 +54,9 @@ import ActivityLog from "./components/ActivityLog";
 import Auth from "./components/Auth";
 import Onboarding from "./components/Onboarding";
 import { api, API_BASE_URL } from "./api/client";
+import { motion, AnimatePresence } from "framer-motion";
+import { NotificationContext } from "./context/NotificationContext";
+import { ColorModeContext } from "./main";
 
 const drawerWidth = 260;
 
@@ -92,11 +98,11 @@ const SidebarContent = ({ onNavigate, profile, onLogout, onEditProfile }) => {
         </Box>
       </Toolbar>
       
-      <Divider light sx={{ borderColor: "rgba(255,255,255,0.06)" }} />
+      <Divider light sx={{ borderColor: (theme) => theme.palette.mode === 'dark' ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)" }} />
       
       {/* User Stats Card in Sidebar */}
       {profile && (
-        <Box sx={{ p: 2, mx: 2, my: 2, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)" }}>
+        <Box sx={{ p: 2, mx: 2, my: 2, borderRadius: 2, backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)", border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.05)"}` }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
             <Avatar
               src={profile.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(profile.studentName || 'ecosyn')}`}
@@ -106,14 +112,14 @@ const SidebarContent = ({ onNavigate, profile, onLogout, onEditProfile }) => {
                 height: 48,
                 border: "2px solid #10b981",
                 boxShadow: "0 0 10px rgba(16, 185, 129, 0.2)",
-                backgroundColor: "rgba(255,255,255,0.05)"
+                backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)"
               }}
             >
               {profile.studentName ? profile.studentName[0].toUpperCase() : "U"}
             </Avatar>
             <Box sx={{ overflow: "hidden", flexGrow: 1 }}>
               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 0.5 }}>
-                <Typography variant="body1" sx={{ color: "#f8fafc", fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", flexGrow: 1 }}>
+                <Typography variant="body1" sx={{ color: "text.primary", fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", flexGrow: 1 }}>
                   {profile.studentName}
                 </Typography>
                 <IconButton size="small" onClick={onEditProfile} sx={{ color: "text.secondary", p: 0.5, "&:hover": { color: "#10b981" } }}>
@@ -140,7 +146,7 @@ const SidebarContent = ({ onNavigate, profile, onLogout, onEditProfile }) => {
             <LinearProgress
               variant="determinate"
               value={profile.levelProgress}
-              sx={{ height: 6, borderRadius: 1, backgroundColor: "rgba(255,255,255,0.08)" }}
+              sx={{ height: 6, borderRadius: 1, backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)" }}
             />
           </Box>
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 1.5 }}>
@@ -228,6 +234,9 @@ const Shell = ({ profile, onLogout, onEditProfile }) => {
     return active?.label || "Dashboard";
   }, [location.pathname]);
 
+  const theme = useTheme();
+  const colorMode = useContext(ColorModeContext);
+
   return (
     <Box
       sx={{
@@ -242,8 +251,8 @@ const Shell = ({ profile, onLogout, onEditProfile }) => {
         elevation={0}
         sx={{
           backdropFilter: "blur(20px)",
-          backgroundColor: "rgba(2, 7, 14, 0.75)",
-          borderBottom: "1px solid rgba(255,255,255,0.05)",
+          backgroundColor: theme.palette.mode === "dark" ? "rgba(2, 7, 14, 0.75)" : "rgba(255, 255, 255, 0.8)",
+          borderBottom: `1px solid ${theme.palette.mode === "dark" ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.06)"}`,
           zIndex: (theme) => theme.zIndex.drawer + 1,
         }}
       >
@@ -256,10 +265,15 @@ const Shell = ({ profile, onLogout, onEditProfile }) => {
           >
             <MenuRoundedIcon />
           </IconButton>
-          <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 700, letterSpacing: "-0.5px" }}>
+          <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 700, letterSpacing: "-0.5px", color: "text.primary" }}>
             {pageTitle}
           </Typography>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Tooltip title={`Switch to ${theme.palette.mode === "dark" ? "Light" : "Dark"} Mode`}>
+              <IconButton onClick={colorMode.toggleColorMode} color="inherit" sx={{ color: "text.primary" }}>
+                {theme.palette.mode === "dark" ? <LightModeRoundedIcon /> : <DarkModeRoundedIcon />}
+              </IconButton>
+            </Tooltip>
             <Tooltip title="EcoSyn Sustainability Platform">
               <Chip
                 label="v1.0 - Active"
@@ -283,9 +297,9 @@ const Shell = ({ profile, onLogout, onEditProfile }) => {
             display: { xs: "block", md: "none" },
             "& .MuiDrawer-paper": {
               width: drawerWidth,
-              backgroundColor: "#02070e",
-              color: "#f8fafc",
-              borderRight: "1px solid rgba(255,255,255,0.06)",
+              backgroundColor: "background.default",
+              color: "text.primary",
+              borderRight: `1px solid ${theme.palette.mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
             },
           }}
         >
@@ -298,9 +312,9 @@ const Shell = ({ profile, onLogout, onEditProfile }) => {
             "& .MuiDrawer-paper": {
               width: drawerWidth,
               boxSizing: "border-box",
-              borderRight: "1px solid rgba(255,255,255,0.06)",
-              backgroundColor: "#02070e",
-              color: "#f8fafc",
+              borderRight: `1px solid ${theme.palette.mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
+              backgroundColor: "background.default",
+              color: "text.primary",
             },
           }}
           open
@@ -338,9 +352,15 @@ const Shell = ({ profile, onLogout, onEditProfile }) => {
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem("ecosyn_token") || null);
   const [profile, setProfile] = useState(null);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState("");
-  const [snackbarSeverity, setSnackbarSeverity] = useState("success");
+  const [notifications, setNotifications] = useState([]);
+
+  const showNotification = (message, severity = "success") => {
+    const id = Date.now() + Math.random();
+    setNotifications((prev) => [...prev, { id, message, severity }]);
+    setTimeout(() => {
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+    }, 4500);
+  };
 
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [editName, setEditName] = useState("");
@@ -367,9 +387,7 @@ export default function App() {
 
   const handleSaveProfile = async () => {
     if (!editName.trim()) {
-      setSnackbarSeverity("warning");
-      setSnackbarMessage("Name cannot be empty.");
-      setSnackbarOpen(true);
+      showNotification("Name cannot be empty.", "warning");
       return;
     }
 
@@ -381,16 +399,12 @@ export default function App() {
       });
       if (res.data.status === "success") {
         setProfile(res.data.profile);
-        setSnackbarSeverity("success");
-        setSnackbarMessage("Profile updated successfully!");
-        setSnackbarOpen(true);
+        showNotification("Profile updated successfully!", "success");
         setEditProfileOpen(false);
       }
     } catch (err) {
       console.error("Profile update failed", err);
-      setSnackbarSeverity("error");
-      setSnackbarMessage("Failed to update profile info.");
-      setSnackbarOpen(true);
+      showNotification("Failed to update profile info.", "error");
     }
   };
 
@@ -422,11 +436,19 @@ export default function App() {
 
   useEffect(() => {
     if (!token) return;
-    const initialLoad = setTimeout(fetchProfile, 0);
-    // Poll profile every 3 seconds to keep UI in sync during complex actions
-    const interval = setInterval(fetchProfile, 3000);
+    fetchProfile();
+
+    // Refetch when the tab gains focus to keep user stats fresh with zero polling overhead
+    const handleFocus = () => {
+      fetchProfile();
+    };
+    window.addEventListener("focus", handleFocus);
+
+    // Keep a slow 30-second background poll as a fallback for SSE drops
+    const interval = setInterval(fetchProfile, 30000);
+
     return () => {
-      clearTimeout(initialLoad);
+      window.removeEventListener("focus", handleFocus);
       clearInterval(interval);
     };
   }, [token]);
@@ -456,9 +478,8 @@ export default function App() {
         }
 
         if (data.payload?.message) {
-          setSnackbarSeverity(data.type.includes("reset") ? "info" : "success");
-          setSnackbarMessage(data.payload.message);
-          setSnackbarOpen(true);
+          const sev = data.type.includes("reset") ? "info" : "success";
+          showNotification(data.payload.message, sev);
         }
       } catch (error) {
         console.error("Realtime event parsing failed", error);
@@ -474,25 +495,111 @@ export default function App() {
 
 
 
+  const renderNotifications = () => (
+    <Box
+      sx={{
+        position: "fixed",
+        bottom: 24,
+        right: 24,
+        zIndex: 9999,
+        display: "flex",
+        flexDirection: "column",
+        gap: 1.5,
+        pointerEvents: "none",
+        width: "100%",
+        maxWidth: 360,
+      }}
+    >
+      <AnimatePresence>
+        {notifications.map((notif) => (
+          <Box
+            key={notif.id}
+            component={motion.div}
+            layout
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.2 } }}
+            sx={{
+              pointerEvents: "auto",
+              boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
+              borderRadius: 2.5,
+              overflow: "hidden",
+              border: "1px solid rgba(255,255,255,0.06)",
+            }}
+          >
+            <Alert
+              severity={notif.severity}
+              variant="filled"
+              onClose={() => {
+                setNotifications((prev) => prev.filter((n) => n.id !== notif.id));
+              }}
+              sx={{
+                width: "100%",
+                backdropFilter: "blur(10px)",
+                fontWeight: 650,
+                fontSize: "0.9rem",
+                borderRadius: 2.5,
+                boxShadow: "none",
+                "& .MuiAlert-message": { width: "100%", pr: 2 },
+                "&.MuiAlert-filledSuccess": {
+                  background: "linear-gradient(135deg, rgba(16, 185, 129, 0.95), rgba(5, 150, 105, 0.95))",
+                  color: "#fff",
+                },
+                "&.MuiAlert-filledError": {
+                  background: "linear-gradient(135deg, rgba(239, 68, 68, 0.95), rgba(220, 38, 38, 0.95))",
+                  color: "#fff",
+                },
+                "&.MuiAlert-filledWarning": {
+                  background: "linear-gradient(135deg, rgba(245, 158, 11, 0.95), rgba(217, 119, 6, 0.95))",
+                  color: "#fff",
+                },
+                "&.MuiAlert-filledInfo": {
+                  background: "linear-gradient(135deg, rgba(6, 182, 212, 0.95), rgba(8, 145, 178, 0.95))",
+                  color: "#fff",
+                },
+              }}
+            >
+              {notif.message}
+            </Alert>
+          </Box>
+        ))}
+      </AnimatePresence>
+    </Box>
+  );
+
   if (!token) {
-    return <Auth onAuthSuccess={handleAuthSuccess} />;
+    return (
+      <NotificationContext.Provider value={{ showNotification }}>
+        <Auth onAuthSuccess={handleAuthSuccess} />
+        {renderNotifications()}
+      </NotificationContext.Provider>
+    );
   }
 
   if (!profile) {
     return (
-      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh", backgroundColor: "#02070e" }}>
-        <CircularProgress color="primary" />
-      </Box>
+      <NotificationContext.Provider value={{ showNotification }}>
+        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh", backgroundColor: "background.default" }}>
+          <CircularProgress color="primary" />
+        </Box>
+        {renderNotifications()}
+      </NotificationContext.Provider>
     );
   }
 
   if (profile.isOnboarded === false) {
-    return <Onboarding onOnboardComplete={fetchProfile} />;
+    return (
+      <NotificationContext.Provider value={{ showNotification }}>
+        <Onboarding onOnboardComplete={fetchProfile} />
+        {renderNotifications()}
+      </NotificationContext.Provider>
+    );
   }
 
   return (
-    <BrowserRouter>
-      <Shell profile={profile} onLogout={handleLogout} onEditProfile={handleOpenEditProfile} />
+    <NotificationContext.Provider value={{ showNotification }}>
+      <BrowserRouter>
+        <Shell profile={profile} onLogout={handleLogout} onEditProfile={handleOpenEditProfile} />
 
       {/* Edit Profile Dialog */}
       <Dialog
@@ -500,9 +607,9 @@ export default function App() {
         onClose={() => setEditProfileOpen(false)}
         PaperProps={{
           sx: {
-            backgroundColor: "rgba(10, 25, 41, 0.95)",
+            backgroundColor: "background.paper",
             backdropFilter: "blur(20px)",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
+            border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.08)"}`,
             borderRadius: 3,
             p: 1.5,
             width: "100%",
@@ -510,7 +617,7 @@ export default function App() {
           }
         }}
       >
-        <DialogTitle sx={{ fontWeight: 800, color: "#f8fafc", pb: 1 }}>
+        <DialogTitle sx={{ fontWeight: 800, color: "text.primary", pb: 1 }}>
           Edit Profile Info
         </DialogTitle>
         <DialogContent>
@@ -523,7 +630,7 @@ export default function App() {
                 height: 76,
                 border: "3px solid #10b981",
                 boxShadow: "0 0 15px rgba(16, 185, 129, 0.25)",
-                backgroundColor: "rgba(255,255,255,0.05)"
+                backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(255,255,255,0.05)" : "rgba(0, 0, 0, 0.04)"
               }}
             />
             <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
@@ -540,8 +647,8 @@ export default function App() {
               mb: 2.5,
               "& .MuiOutlinedInput-root": {
                 borderRadius: 2,
-                backgroundColor: "rgba(255,255,255,0.02)",
-                "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(255,255,255,0.2)" },
+                backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(255,255,255,0.02)" : "rgba(0, 0, 0, 0.015)",
+                "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: (theme) => theme.palette.mode === 'dark' ? "rgba(255,255,255,0.2)" : "rgba(0, 0, 0, 0.2)" },
                 "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#10b981" }
               }
             }}
@@ -557,8 +664,8 @@ export default function App() {
             sx={{
               "& .MuiOutlinedInput-root": {
                 borderRadius: 2,
-                backgroundColor: "rgba(255,255,255,0.02)",
-                "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(255,255,255,0.2)" },
+                backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(255,255,255,0.02)" : "rgba(0, 0, 0, 0.015)",
+                "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: (theme) => theme.palette.mode === 'dark' ? "rgba(255,255,255,0.2)" : "rgba(0, 0, 0, 0.2)" },
                 "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#10b981" }
               },
               "& .MuiFormHelperText-root": { color: "text.secondary" }
@@ -590,16 +697,8 @@ export default function App() {
         </DialogActions>
       </Dialog>
 
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={3000}
-        onClose={() => setSnackbarOpen(false)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-      >
-        <Alert severity={snackbarSeverity} sx={{ width: "100%" }}>
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+      {renderNotifications()}
     </BrowserRouter>
+    </NotificationContext.Provider>
   );
 }

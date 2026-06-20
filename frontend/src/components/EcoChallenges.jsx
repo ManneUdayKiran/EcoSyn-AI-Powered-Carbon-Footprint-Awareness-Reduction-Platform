@@ -14,7 +14,6 @@ import {
   ListItemAvatar,
   ListItemText,
   Chip,
-  Snackbar,
   Alert,
   Dialog,
   DialogTitle,
@@ -27,13 +26,14 @@ import HowToRegRoundedIcon from "@mui/icons-material/HowToRegRounded";
 import StarsRoundedIcon from "@mui/icons-material/StarsRounded";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import { api } from "../api/client";
+import { useNotification } from "../context/NotificationContext";
 
 export default function EcoChallenges() {
+  const { showNotification } = useNotification();
   const [profile, setProfile] = useState(null);
   const [challenges, setChallenges] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
   const [suggested, setSuggested] = useState(null);
-  const [alert, setAlert] = useState(null);
   const [levelupOpen, setLevelupOpen] = useState(false);
   const [levelupMsg, setLevelupMsg] = useState("");
 
@@ -54,7 +54,7 @@ export default function EcoChallenges() {
 
   useEffect(() => {
     const initialLoad = setTimeout(fetchData, 0);
-    const interval = setInterval(fetchData, 3000);
+    const interval = setInterval(fetchData, 30000);
     return () => {
       clearTimeout(initialLoad);
       clearInterval(interval);
@@ -74,25 +74,19 @@ export default function EcoChallenges() {
       setChallenges(chalRes.data);
 
       if (res.data.completedNow) {
-        setAlert({
-          severity: "success",
-          message: `🎉 Challenge Completed! Unlocked new achievement points.`,
-        });
+        showNotification("🎉 Challenge Completed! Unlocked new achievement points.", "success");
         // If level up occurred
         if (newProfile.level > oldLevel) {
           setLevelupMsg(`Congratulations! You have advanced to Level ${newProfile.level}! Unlocked badge: "Level ${newProfile.level} Hero".`);
           setLevelupOpen(true);
         }
       } else {
-        setAlert({
-          severity: "info",
-          message: `Checked in! Incremental progress logged. +5 EcoPoints.`,
-        });
+        showNotification("Checked in! Incremental progress logged. +5 EcoPoints.", "info");
       }
       fetchData();
     } catch (error) {
       console.error("Error registering challenge progress", error);
-      setAlert({ severity: "error", message: "Error registering progress check-in." });
+      showNotification("Error registering progress check-in.", "error");
     }
   };
 
@@ -123,11 +117,11 @@ export default function EcoChallenges() {
   return (
     <Box>
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" sx={{ fontWeight: 800, mb: 1, color: "#f8fafc" }}>
+        <Typography variant="h4" sx={{ fontWeight: 800, mb: 1, color: "text.primary" }}>
           Eco Missions & Leaderboard
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Gamify sustainable lifestyle choices. Participate in weekly environmental challenges, level up your profile, and earn badges to climb the leaderboard.
+          Gamify lifestyle choices. Participate in environmental challenges, level up your profile, and earn badges to climb the standings.
         </Typography>
       </Box>
 
@@ -147,7 +141,7 @@ export default function EcoChallenges() {
               <Typography variant="body2" sx={{ fontWeight: 800, color: "primary.main", mb: 0.5 }}>
                 Smart Mission Focus: {suggested.topCategory}
               </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 700, color: "#f8fafc" }}>
+              <Typography variant="body2" sx={{ fontWeight: 700, color: "text.primary" }}>
                 {suggested.suggestion.title}
               </Typography>
               <Typography variant="caption" color="text.secondary">
@@ -165,16 +159,20 @@ export default function EcoChallenges() {
                 sx={{
                   p: 3,
                   borderRadius: 2,
-                  backgroundColor: "rgba(9, 18, 29, 0.65)",
+                  backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(9, 18, 29, 0.65)" : "rgba(255, 255, 255, 0.65)",
                   backdropFilter: "blur(10px)",
-                  border: chal.completed ? "1px solid rgba(16, 185, 129, 0.25)" : "1px solid rgba(255,255,255,0.06)",
-                  boxShadow: chal.completed ? "0 4px 20px rgba(16, 185, 129, 0.08)" : "none",
+                  border: (theme) => chal.completed 
+                    ? "1px solid rgba(16, 185, 129, 0.25)" 
+                    : (theme.palette.mode === 'dark' ? "1px solid rgba(255,255,255,0.06)" : "1px solid rgba(0,0,0,0.06)"),
+                  boxShadow: (theme) => chal.completed 
+                    ? (theme.palette.mode === 'dark' ? "0 4px 20px rgba(16, 185, 129, 0.08)" : "0 4px 20px rgba(16, 185, 129, 0.12)") 
+                    : "none",
                 }}
               >
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1.5 }}>
                   <Box>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
-                      <Typography variant="body1" sx={{ fontWeight: 800, color: chal.completed ? "#10b981" : "#f8fafc" }}>
+                      <Typography variant="body1" sx={{ fontWeight: 800, color: chal.completed ? "#10b981" : "text.primary" }}>
                         {chal.title}
                       </Typography>
                       {chal.completed && <CheckCircleRoundedIcon color="success" sx={{ fontSize: 18 }} />}
@@ -242,14 +240,14 @@ export default function EcoChallenges() {
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 2.5 }}>
             Eco Warrior Standings
           </Typography>
-          <Paper sx={{ p: 3, borderRadius: 2, background: "rgba(9, 18, 29, 0.65)", backdropFilter: "blur(10px)" }}>
+          <Paper sx={{ p: 3, borderRadius: 2, backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(9, 18, 29, 0.65)" : "rgba(255, 255, 255, 0.65)", backdropFilter: "blur(10px)" }}>
             <List>
               {leaderboard.map((user, idx) => (
                 <ListItem
                   key={idx}
                   secondaryAction={
                     <Box sx={{ textAlign: "right" }}>
-                      <Typography variant="body2" sx={{ fontWeight: 800, color: user.isCurrentUser ? "#10b981" : "#f8fafc" }}>
+                      <Typography variant="body2" sx={{ fontWeight: 800, color: user.isCurrentUser ? "#10b981" : "text.primary" }}>
                         {user.points} pts
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
@@ -260,14 +258,18 @@ export default function EcoChallenges() {
                   sx={{
                     my: 1,
                     borderRadius: 1,
-                    backgroundColor: user.isCurrentUser ? "rgba(16, 185, 129, 0.06)" : "rgba(255,255,255,0.01)",
-                    border: user.isCurrentUser ? "1px solid rgba(16, 185, 129, 0.2)" : "1px solid rgba(255,255,255,0.03)",
+                    backgroundColor: (theme) => user.isCurrentUser 
+                      ? "rgba(16, 185, 129, 0.06)" 
+                      : (theme.palette.mode === 'dark' ? "rgba(255,255,255,0.01)" : "rgba(0,0,0,0.015)"),
+                    border: (theme) => user.isCurrentUser 
+                      ? "1px solid rgba(16, 185, 129, 0.2)" 
+                      : (theme.palette.mode === 'dark' ? "1px solid rgba(255,255,255,0.03)" : "1px solid rgba(0,0,0,0.05)"),
                     px: 2,
                     py: 1.5,
                   }}
                 >
                   <ListItemAvatar sx={{ minWidth: 40 }}>
-                    <Avatar sx={{ bgcolor: "rgba(255,255,255,0.03)", fontSize: "0.95rem" }}>
+                    <Avatar sx={{ bgcolor: (theme) => theme.palette.mode === 'dark' ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.04)", fontSize: "0.95rem" }}>
                       {getAvatarEmoji(idx)}
                     </Avatar>
                   </ListItemAvatar>
@@ -276,7 +278,7 @@ export default function EcoChallenges() {
                     primaryTypographyProps={{
                       fontSize: "0.95rem",
                       fontWeight: user.isCurrentUser ? 800 : 600,
-                      color: user.isCurrentUser ? "#10b981" : "#f8fafc",
+                      color: user.isCurrentUser ? "#10b981" : "text.primary",
                     }}
                     secondary={user.isCurrentUser ? "You are here" : "Eco-Citizen"}
                     secondaryTypographyProps={{ fontSize: "0.75rem" }}
@@ -291,7 +293,7 @@ export default function EcoChallenges() {
                 Climb the ranks!
               </Typography>
               <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                Complete more weekly tasks or scan utility bills to claim the top spot.
+                Complete weekly tasks or scan utility bills to claim the top spot.
               </Typography>
             </Box>
           </Paper>
@@ -299,7 +301,7 @@ export default function EcoChallenges() {
       </Grid>
 
       {/* Level-Up Dialog */}
-      <Dialog open={levelupOpen} onClose={() => setLevelupOpen(false)} PaperProps={{ sx: { borderRadius: 2, p: 2, bgcolor: "#09121d" } }}>
+      <Dialog open={levelupOpen} onClose={() => setLevelupOpen(false)} PaperProps={{ sx: { borderRadius: 2, p: 2, backgroundColor: "background.paper" } }}>
         <DialogTitle sx={{ textAlign: "center", fontWeight: 900, fontSize: "1.5rem", color: "#10b981" }}>
           🎉 Level Up! 🎉
         </DialogTitle>
@@ -321,7 +323,7 @@ export default function EcoChallenges() {
               <EmojiEventsRoundedIcon sx={{ color: "#10b981", fontSize: 40 }} />
             </Box>
           </Box>
-          <Typography variant="body1" align="center" sx={{ color: "#fff", fontWeight: 600 }}>
+          <Typography variant="body1" align="center" sx={{ color: "text.primary", fontWeight: 600 }}>
             {levelupMsg}
           </Typography>
         </DialogContent>
@@ -332,18 +334,6 @@ export default function EcoChallenges() {
         </DialogActions>
       </Dialog>
 
-      <Snackbar
-        open={Boolean(alert)}
-        autoHideDuration={3500}
-        onClose={() => setAlert(null)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-      >
-        {alert && (
-          <Alert severity={alert.severity} onClose={() => setAlert(null)} sx={{ width: "100%" }}>
-            {alert.message}
-          </Alert>
-        )}
-      </Snackbar>
     </Box>
   );
 }

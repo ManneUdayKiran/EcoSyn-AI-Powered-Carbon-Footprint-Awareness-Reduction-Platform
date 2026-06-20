@@ -13,6 +13,7 @@ import {
   Alert,
   Fade,
   CircularProgress,
+  useTheme,
 } from "@mui/material";
 import EmailRoundedIcon from "@mui/icons-material/EmailRounded";
 import LockRoundedIcon from "@mui/icons-material/LockRounded";
@@ -22,6 +23,7 @@ import VisibilityOffRoundedIcon from "@mui/icons-material/VisibilityOffRounded";
 import { api, extractErrorMessage } from "../api/client";
 
 export default function Auth({ onAuthSuccess }) {
+  const theme = useTheme();
   const [tab, setTab] = useState(0); // 0: Login, 1: Signup
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -89,7 +91,9 @@ export default function Auth({ onAuthSuccess }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "radial-gradient(circle at 50% 50%, #030d1a 0%, #010409 100%)",
+        background: (theme) => theme.palette.mode === 'dark' 
+          ? "radial-gradient(circle at 50% 50%, #030d1a 0%, #010409 100%)"
+          : "radial-gradient(circle at 50% 50%, #f8fafc 0%, #e2e8f0 100%)",
         p: 3,
         position: "relative",
         overflow: "hidden",
@@ -122,11 +126,11 @@ export default function Auth({ onAuthSuccess }) {
           sx={{
             width: "100%",
             maxWidth: 440,
-            borderRadius: 4,
-            backgroundColor: "rgba(10, 25, 41, 0.6)",
+            borderRadius: 1.5,
+            backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(10, 25, 41, 0.6)" : "rgba(255, 255, 255, 0.75)",
             backdropFilter: "blur(20px)",
-            border: "1px solid rgba(255, 255, 255, 0.06)",
-            boxShadow: "0 20px 40px rgba(0, 0, 0, 0.4)",
+            border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.08)"}`,
+            boxShadow: (theme) => theme.palette.mode === 'dark' ? "0 20px 40px rgba(0, 0, 0, 0.4)" : "0 20px 40px rgba(0, 0, 0, 0.08)",
             overflow: "hidden",
           }}
         >
@@ -137,7 +141,7 @@ export default function Auth({ onAuthSuccess }) {
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              borderBottom: "1px solid rgba(255, 255, 255, 0.04)",
+              borderBottom: (theme) => `1px solid ${theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.04)" : "rgba(0, 0, 0, 0.06)"}`,
               background: "linear-gradient(180deg, rgba(16, 185, 129, 0.03) 0%, transparent 100%)",
             }}
           >
@@ -145,7 +149,7 @@ export default function Auth({ onAuthSuccess }) {
               sx={{
                 width: 52,
                 height: 52,
-                borderRadius: "16px",
+                borderRadius: "10px",
                 background: "linear-gradient(135deg, #10b981, #06b6d4)",
                 display: "flex",
                 alignItems: "center",
@@ -159,7 +163,7 @@ export default function Auth({ onAuthSuccess }) {
             >
               ES
             </Box>
-            <Typography variant="h5" sx={{ fontWeight: 800, letterSpacing: "-0.5px", color: "#f8fafc", mb: 0.5 }}>
+            <Typography variant="h5" sx={{ fontWeight: 800, letterSpacing: "-0.5px", color: "text.primary", mb: 0.5 }}>
               Welcome to EcoSyn
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", fontWeight: 500 }}>
@@ -174,8 +178,8 @@ export default function Auth({ onAuthSuccess }) {
             textColor="primary"
             indicatorColor="primary"
             sx={{
-              borderBottom: "1px solid rgba(255, 255, 255, 0.04)",
-              backgroundColor: "rgba(2, 7, 14, 0.2)",
+              borderBottom: (theme) => `1px solid ${theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.04)" : "rgba(0, 0, 0, 0.06)"}`,
+              backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(2, 7, 14, 0.2)" : "rgba(0, 0, 0, 0.02)",
               "& .MuiTab-root": {
                 fontWeight: 700,
                 fontSize: "0.95rem",
@@ -232,9 +236,9 @@ export default function Auth({ onAuthSuccess }) {
                       sx={{
                         "& .MuiOutlinedInput-root": {
                           borderRadius: 2.5,
-                          backgroundColor: "rgba(255, 255, 255, 0.02)",
+                          backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.02)" : "rgba(0, 0, 0, 0.015)",
                           "&:hover .MuiOutlinedInput-notchedOutline": {
-                            borderColor: "rgba(255,255,255,0.2)",
+                            borderColor: (theme) => theme.palette.mode === 'dark' ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)",
                           },
                           "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
                             borderColor: "#10b981",
@@ -267,9 +271,9 @@ export default function Auth({ onAuthSuccess }) {
                   sx={{
                     "& .MuiOutlinedInput-root": {
                       borderRadius: 2.5,
-                      backgroundColor: "rgba(255, 255, 255, 0.02)",
+                      backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.02)" : "rgba(0, 0, 0, 0.015)",
                       "&:hover .MuiOutlinedInput-notchedOutline": {
-                        borderColor: "rgba(255,255,255,0.2)",
+                        borderColor: (theme) => theme.palette.mode === 'dark' ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)",
                       },
                       "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
                         borderColor: "#10b981",
@@ -311,9 +315,9 @@ export default function Auth({ onAuthSuccess }) {
                   sx={{
                     "& .MuiOutlinedInput-root": {
                       borderRadius: 2.5,
-                      backgroundColor: "rgba(255, 255, 255, 0.02)",
+                      backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.02)" : "rgba(0, 0, 0, 0.015)",
                       "&:hover .MuiOutlinedInput-notchedOutline": {
-                        borderColor: "rgba(255,255,255,0.2)",
+                        borderColor: (theme) => theme.palette.mode === 'dark' ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)",
                       },
                       "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
                         borderColor: "#10b981",

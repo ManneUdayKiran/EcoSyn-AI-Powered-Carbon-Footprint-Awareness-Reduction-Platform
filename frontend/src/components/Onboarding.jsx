@@ -9,6 +9,7 @@ import {
   LinearProgress,
   Alert,
   CircularProgress,
+  useTheme,
 } from "@mui/material";
 import { motion, AnimatePresence } from "framer-motion";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
@@ -17,6 +18,7 @@ import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import { api, extractErrorMessage } from "../api/client";
 
 export default function Onboarding({ onOnboardComplete }) {
+  const theme = useTheme();
   const [step, setStep] = useState(1);
   const [travel, setTravel] = useState("");
   const [diet, setDiet] = useState("");
@@ -93,7 +95,9 @@ export default function Onboarding({ onOnboardComplete }) {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        background: "radial-gradient(circle at 50% 50%, #030d1a 0%, #010409 100%)",
+        background: (theme) => theme.palette.mode === 'dark' 
+          ? "radial-gradient(circle at 50% 50%, #030d1a 0%, #010409 100%)"
+          : "radial-gradient(circle at 50% 50%, #f8fafc 0%, #e2e8f0 100%)",
         p: 3,
         position: "relative",
         overflow: "hidden",
@@ -127,17 +131,17 @@ export default function Onboarding({ onOnboardComplete }) {
           width: "100%",
           maxWidth: 600,
           borderRadius: 4,
-          backgroundColor: "rgba(10, 25, 41, 0.65)",
+          backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(10, 25, 41, 0.65)" : "rgba(255, 255, 255, 0.75)",
           backdropFilter: "blur(20px)",
-          border: "1px solid rgba(255, 255, 255, 0.06)",
-          boxShadow: "0 20px 40px rgba(0, 0, 0, 0.4)",
+          border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.08)"}`,
+          boxShadow: (theme) => theme.palette.mode === 'dark' ? "0 20px 40px rgba(0, 0, 0, 0.4)" : "0 20px 40px rgba(0, 0, 0, 0.08)",
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
         }}
       >
         {/* Progress Bar & Header */}
-        <Box sx={{ p: 3, borderBottom: "1px solid rgba(255, 255, 255, 0.05)" }}>
+        <Box sx={{ p: 3, borderBottom: (theme) => `1px solid ${theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.06)"}` }}>
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
             <Typography variant="caption" sx={{ color: "#10b981", fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>
               Creating Your Carbon Twin
@@ -152,7 +156,7 @@ export default function Onboarding({ onOnboardComplete }) {
             sx={{
               height: 6,
               borderRadius: 3,
-              backgroundColor: "rgba(255, 255, 255, 0.05)",
+              backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.06)",
               "& .MuiLinearProgress-bar": {
                 background: "linear-gradient(90deg, #10b981, #06b6d4)",
               },
@@ -177,7 +181,7 @@ export default function Onboarding({ onOnboardComplete }) {
                   exit={{ opacity: 0, x: -20 }}
                   transition={{ duration: 0.25 }}
                 >
-                  <Typography variant="h5" sx={{ fontWeight: 800, color: "#f8fafc", mb: 1 }}>
+                  <Typography variant="h5" sx={{ fontWeight: 800, color: "text.primary", mb: 1 }}>
                     How do you travel? 🚗
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
@@ -194,6 +198,16 @@ export default function Onboarding({ onOnboardComplete }) {
                             setTravel(opt.id);
                             setError("");
                           }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setTravel(opt.id);
+                              setError("");
+                            }
+                          }}
+                          role="button"
+                          tabIndex={0}
+                          aria-pressed={selected}
                           component={motion.div}
                           whileHover={{ scale: 1.015, translateY: -2 }}
                           whileTap={{ scale: 0.985 }}
@@ -201,26 +215,31 @@ export default function Onboarding({ onOnboardComplete }) {
                             p: 2.5,
                             borderRadius: 2,
                             cursor: "pointer",
-                            border: `1px solid ${selected ? "rgba(16, 185, 129, 0.5)" : "rgba(255, 255, 255, 0.06)"}`,
-                            background: selected
+                            border: (theme) => `1px solid ${selected ? "rgba(16, 185, 129, 0.5)" : (theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.08)")}`,
+                            background: (theme) => selected
                               ? "linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(6, 182, 212, 0.08) 100%)"
-                              : "rgba(255, 255, 255, 0.01)",
+                              : (theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.01)" : "rgba(0, 0, 0, 0.02)"),
                             boxShadow: selected ? "0 8px 24px rgba(16, 185, 129, 0.15)" : "none",
                             display: "flex",
                             alignItems: "center",
                             gap: 2.5,
                             transition: "border-color 0.2s ease, background-color 0.2s ease",
                             "&:hover": {
-                              borderColor: selected ? "rgba(16, 185, 129, 0.6)" : "rgba(255, 255, 255, 0.12)",
-                              backgroundColor: selected
+                              borderColor: (theme) => selected ? "rgba(16, 185, 129, 0.6)" : (theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.12)" : "rgba(0, 0, 0, 0.15)"),
+                              backgroundColor: (theme) => selected
                                 ? "linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(6, 182, 212, 0.1) 100%)"
-                                : "rgba(255, 255, 255, 0.03)",
+                                : (theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.03)" : "rgba(0, 0, 0, 0.04)"),
+                            },
+                            "&:focus-visible": {
+                              borderColor: "#10b981",
+                              outline: "2px solid #10b981",
+                              outlineOffset: "2px",
                             },
                           }}
                         >
                           <Typography variant="h3" sx={{ userSelect: "none" }}>{opt.emoji}</Typography>
                           <Box sx={{ flexGrow: 1 }}>
-                            <Typography variant="body1" sx={{ fontWeight: 700, color: selected ? "#10b981" : "#f8fafc" }}>
+                            <Typography variant="body1" sx={{ fontWeight: 700, color: selected ? "#10b981" : "text.primary" }}>
                               {opt.label}
                             </Typography>
                             <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
@@ -243,7 +262,7 @@ export default function Onboarding({ onOnboardComplete }) {
                   exit={{ opacity: 0, x: -20 }}
                   transition={{ duration: 0.25 }}
                 >
-                  <Typography variant="h5" sx={{ fontWeight: 800, color: "#f8fafc", mb: 1 }}>
+                  <Typography variant="h5" sx={{ fontWeight: 800, color: "text.primary", mb: 1 }}>
                     What about your diet? 🥗
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
@@ -260,6 +279,16 @@ export default function Onboarding({ onOnboardComplete }) {
                             setDiet(opt.id);
                             setError("");
                           }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setDiet(opt.id);
+                              setError("");
+                            }
+                          }}
+                          role="button"
+                          tabIndex={0}
+                          aria-pressed={selected}
                           component={motion.div}
                           whileHover={{ scale: 1.01, translateY: -2 }}
                           whileTap={{ scale: 0.99 }}
@@ -267,26 +296,31 @@ export default function Onboarding({ onOnboardComplete }) {
                             p: 2.5,
                             borderRadius: 2,
                             cursor: "pointer",
-                            border: `1px solid ${selected ? "rgba(16, 185, 129, 0.5)" : "rgba(255, 255, 255, 0.06)"}`,
-                            background: selected
+                            border: (theme) => `1px solid ${selected ? "rgba(16, 185, 129, 0.5)" : (theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.08)")}`,
+                            background: (theme) => selected
                               ? "linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(6, 182, 212, 0.08) 100%)"
-                              : "rgba(255, 255, 255, 0.01)",
+                              : (theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.01)" : "rgba(0, 0, 0, 0.02)"),
                             boxShadow: selected ? "0 8px 24px rgba(16, 185, 129, 0.15)" : "none",
                             display: "flex",
                             alignItems: "center",
                             gap: 3,
                             transition: "border-color 0.2s ease, background-color 0.2s ease",
                             "&:hover": {
-                              borderColor: selected ? "rgba(16, 185, 129, 0.6)" : "rgba(255, 255, 255, 0.12)",
-                              backgroundColor: selected
+                              borderColor: (theme) => selected ? "rgba(16, 185, 129, 0.6)" : (theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.12)" : "rgba(0, 0, 0, 0.15)"),
+                              backgroundColor: (theme) => selected
                                 ? "linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(6, 182, 212, 0.1) 100%)"
-                                : "rgba(255, 255, 255, 0.03)",
+                                : (theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.03)" : "rgba(0, 0, 0, 0.04)"),
+                            },
+                            "&:focus-visible": {
+                              borderColor: "#10b981",
+                              outline: "2px solid #10b981",
+                              outlineOffset: "2px",
                             },
                           }}
                         >
                           <Typography variant="h3" sx={{ userSelect: "none" }}>{opt.emoji}</Typography>
                           <Box sx={{ flexGrow: 1 }}>
-                            <Typography variant="body1" sx={{ fontWeight: 700, color: selected ? "#10b981" : "#f8fafc" }}>
+                            <Typography variant="body1" sx={{ fontWeight: 700, color: selected ? "#10b981" : "text.primary" }}>
                               {opt.label}
                             </Typography>
                             <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
@@ -309,14 +343,14 @@ export default function Onboarding({ onOnboardComplete }) {
                   exit={{ opacity: 0, x: -20 }}
                   transition={{ duration: 0.25 }}
                 >
-                  <Typography variant="h5" sx={{ fontWeight: 800, color: "#f8fafc", mb: 1 }}>
+                  <Typography variant="h5" sx={{ fontWeight: 800, color: "text.primary", mb: 1 }}>
                     Monthly Electricity Usage ⚡
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 5 }}>
                     Adjust the slider to match your average monthly electrical consumption in kilowatt-hours (kWh).
                   </Typography>
 
-                  <Box sx={{ px: 3, py: 4, borderRadius: 2, backgroundColor: "rgba(255, 255, 255, 0.015)", border: "1px solid rgba(255, 255, 255, 0.03)", mb: 2 }}>
+                  <Box sx={{ px: 3, py: 4, borderRadius: 2, backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.015)" : "rgba(0, 0, 0, 0.02)", border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.03)" : "rgba(0, 0, 0, 0.06)"}`, mb: 2 }}>
                     <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", mb: 3 }}>
                       <Typography variant="subtitle1" sx={{ color: "text.secondary", fontWeight: 600 }}>
                         Estimated Consumption
@@ -390,14 +424,14 @@ export default function Onboarding({ onOnboardComplete }) {
                   exit={{ opacity: 0, x: -20 }}
                   transition={{ duration: 0.25 }}
                 >
-                  <Typography variant="h5" sx={{ fontWeight: 800, color: "#f8fafc", mb: 1 }}>
+                  <Typography variant="h5" sx={{ fontWeight: 800, color: "text.primary", mb: 1 }}>
                     Monthly Shopping Frequency 🛍️
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 5 }}>
                     How many new items of clothing, electronics, or personal goods do you buy per month on average?
                   </Typography>
 
-                  <Box sx={{ px: 3, py: 4, borderRadius: 2, backgroundColor: "rgba(255, 255, 255, 0.015)", border: "1px solid rgba(255, 255, 255, 0.03)", mb: 2 }}>
+                  <Box sx={{ px: 3, py: 4, borderRadius: 2, backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.015)" : "rgba(0, 0, 0, 0.02)", border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.03)" : "rgba(0, 0, 0, 0.06)"}`, mb: 2 }}>
                     <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", mb: 3 }}>
                       <Typography variant="subtitle1" sx={{ color: "text.secondary", fontWeight: 600 }}>
                         Purchases per Month
@@ -451,8 +485,8 @@ export default function Onboarding({ onOnboardComplete }) {
         <Box
           sx={{
             p: 3,
-            borderTop: "1px solid rgba(255, 255, 255, 0.05)",
-            backgroundColor: "rgba(2, 7, 14, 0.25)",
+            borderTop: (theme) => `1px solid ${theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.06)"}`,
+            backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(2, 7, 14, 0.25)" : "rgba(0, 0, 0, 0.02)",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
@@ -468,8 +502,8 @@ export default function Onboarding({ onOnboardComplete }) {
               fontWeight: 700,
               textTransform: "none",
               "&:hover": {
-                color: "#f8fafc",
-                backgroundColor: "rgba(255, 255, 255, 0.02)",
+                color: "text.primary",
+                backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.02)" : "rgba(0, 0, 0, 0.04)",
               },
             }}
           >

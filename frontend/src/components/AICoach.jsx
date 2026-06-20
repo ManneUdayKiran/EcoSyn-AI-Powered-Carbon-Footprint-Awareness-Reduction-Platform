@@ -9,7 +9,6 @@ import {
   CircularProgress,
   IconButton,
   Tooltip,
-  Snackbar,
   Alert,
   Chip,
   Grid,
@@ -23,6 +22,7 @@ import VolumeUpRoundedIcon from "@mui/icons-material/VolumeUpRounded";
 import DoneAllRoundedIcon from "@mui/icons-material/DoneAllRounded";
 import ElectricBoltRoundedIcon from "@mui/icons-material/ElectricBoltRounded";
 import DirectionsCarRoundedIcon from "@mui/icons-material/DirectionsCarRounded";
+import { useNotification } from "../context/NotificationContext";
 import RestaurantRoundedIcon from "@mui/icons-material/RestaurantRounded";
 import ShoppingBagRoundedIcon from "@mui/icons-material/ShoppingBagRounded";
 import Co2RoundedIcon from "@mui/icons-material/Co2Rounded";
@@ -51,11 +51,11 @@ const COLORS = {
 };
 
 export default function AICoach() {
+  const { showNotification } = useNotification();
   const [messages, setMessages] = useState([initialMessage]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [listening, setListening] = useState(false);
-  const [alert, setAlert] = useState(null);
   
   const [recommendations, setRecommendations] = useState([]);
   const [acceptedIds, setAcceptedIds] = useState([]);
@@ -75,7 +75,7 @@ export default function AICoach() {
 
   useEffect(() => {
     fetchCoachData();
-    const interval = setInterval(fetchCoachData, 3000);
+    const interval = setInterval(fetchCoachData, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -133,7 +133,7 @@ export default function AICoach() {
         { role: "assistant", content: data.reply },
       ]);
     } catch (error) {
-      setAlert({ severity: "error", message: extractErrorMessage(error) });
+      showNotification(extractErrorMessage(error), "error");
     } finally {
       setLoading(false);
     }
@@ -149,22 +149,16 @@ export default function AICoach() {
         recommendationId: recId,
       });
       setAcceptedIds(res.data.profile.acceptedRecommendations || []);
-      setAlert({
-        severity: "success",
-        message: `Recommendation Accepted! Footprint updated & EcoPoints awarded.`,
-      });
+      showNotification("Recommendation Accepted! Footprint updated & EcoPoints awarded.", "success");
     } catch (error) {
       console.error("Failed to accept recommendation", error);
-      setAlert({ severity: "error", message: "Failed to accept recommendation." });
+      showNotification("Failed to accept recommendation.", "error");
     }
   };
 
   const toggleListening = () => {
     if (!recognitionRef.current) {
-      setAlert({
-        severity: "info",
-        message: "Speech recognition not supported in this browser.",
-      });
+      showNotification("Speech recognition not supported in this browser.", "info");
       return;
     }
     if (listening) {
@@ -178,7 +172,7 @@ export default function AICoach() {
 
   const speak = (text) => {
     if (!window.speechSynthesis) {
-      setAlert({ severity: "info", message: "Text-to-speech not supported." });
+      showNotification("Text-to-speech not supported.", "info");
       return;
     }
     const utterance = new SpeechSynthesisUtterance(text);
@@ -206,7 +200,7 @@ export default function AICoach() {
     <Box>
       <Grid container spacing={3} >
         {/* Left Column: Chat Assistant */}
-        <Grid  item xs={12} md={7}>
+        <Grid item xs={12} md={7}>
           <Paper
             sx={{
               p: 3,
@@ -215,12 +209,11 @@ export default function AICoach() {
               display: "flex",
               flexDirection: "column",
               borderRadius: 2,
-              backgroundColor: "rgba(9, 18, 29, 0.65)",
+              backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(9, 18, 29, 0.65)" : "rgba(255, 255, 255, 0.65)",
               backdropFilter: "blur(10px)",
-              border: "1px solid rgba(255,255,255,0.06)",
+              border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
               width:"78vw",
               minWidth: "400px",
-            
             }}
           >
             <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
@@ -247,7 +240,7 @@ export default function AICoach() {
                   variant="outlined"
                   sx={{
                     fontSize: "0.75rem",
-                    borderColor: "rgba(255, 255, 255, 0.08)",
+                    borderColor: (theme) => theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.08)",
                     color: "text.secondary",
                     "&:hover": {
                       borderColor: "primary.main",
@@ -281,17 +274,17 @@ export default function AICoach() {
                       py: 1.5,
                       borderRadius: 1,
                       maxWidth: "80%",
-                      backgroundColor:
+                      backgroundColor: (theme) =>
                         msg.role === "user"
                           ? "rgba(16, 185, 129, 0.15)"
-                          : "rgba(255, 255, 255, 0.025)",
-                      border:
+                          : (theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.025)" : "rgba(0, 0, 0, 0.02)"),
+                      border: (theme) =>
                         msg.role === "user"
                           ? "1px solid rgba(16, 185, 129, 0.25)"
-                          : "1px solid rgba(255, 255, 255, 0.05)",
+                          : (theme.palette.mode === 'dark' ? "1px solid rgba(255, 255, 255, 0.05)" : "1px solid rgba(0, 0, 0, 0.06)"),
                     }}
                   >
-                    <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", color: "#f8fafc" }}>
+                    <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", color: "text.primary" }}>
                       {msg.content}
                     </Typography>
                   </Box>
@@ -314,7 +307,7 @@ export default function AICoach() {
               <TextField
                 fullWidth
                 variant="outlined"
-                placeholder="Ask about green habits or lifestyle changes..."
+                placeholder="Ask about green habits..."
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => {
@@ -326,7 +319,7 @@ export default function AICoach() {
                 sx={{
                   "& .MuiOutlinedInput-root": {
                     borderRadius: 1,
-                    backgroundColor: "rgba(255,255,255,0.01)",
+                    backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(255,255,255,0.01)" : "rgba(0,0,0,0.015)",
                   },
                 }}
               />
@@ -365,9 +358,9 @@ export default function AICoach() {
               display: "flex",
               flexDirection: "column",
               borderRadius: 2,
-              backgroundColor: "rgba(9, 18, 29, 0.65)",
+              backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(9, 18, 29, 0.65)" : "rgba(255, 255, 255, 0.65)",
               backdropFilter: "blur(10px)",
-              border: "1px solid rgba(255,255,255,0.06)",
+              border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
             }}
           >
             <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>
@@ -385,14 +378,14 @@ export default function AICoach() {
                     <Card
                       key={rec.id}
                       sx={{
-                        backgroundColor: isAccepted ? "rgba(16, 185, 129, 0.03)" : "rgba(255, 255, 255, 0.01)",
-                        border: isAccepted
+                        backgroundColor: (theme) => isAccepted ? "rgba(16, 185, 129, 0.03)" : (theme.palette.mode === 'dark' ? "rgba(255, 255, 255, 0.01)" : "rgba(0, 0, 0, 0.01)"),
+                        border: (theme) => isAccepted
                           ? "1px solid rgba(16, 185, 129, 0.2)"
-                          : "1px solid rgba(255, 255, 255, 0.04)",
+                          : (theme.palette.mode === 'dark' ? "1px solid rgba(255, 255, 255, 0.04)" : "1px solid rgba(0, 0, 0, 0.05)"),
                         borderRadius: 1,
                         transition: "all 0.2s ease-in-out",
                         "&:hover": {
-                          borderColor: isAccepted ? "rgba(16, 185, 129, 0.3)" : "rgba(16, 185, 129, 0.15)",
+                          borderColor: (theme) => isAccepted ? "rgba(16, 185, 129, 0.3)" : "rgba(16, 185, 129, 0.15)",
                         },
                       }}
                     >
@@ -400,7 +393,7 @@ export default function AICoach() {
                         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1.5 }}>
                           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                             {getCategoryIcon(rec.category)}
-                            <Typography variant="body2" sx={{ fontWeight: 800, color: "#f8fafc" }}>
+                            <Typography variant="body2" sx={{ fontWeight: 800, color: "text.primary" }}>
                               {rec.title}
                             </Typography>
                           </Box>
@@ -470,19 +463,6 @@ export default function AICoach() {
           </Paper>
         </Grid>
       </Grid>
-
-      <Snackbar
-        open={Boolean(alert)}
-        autoHideDuration={4000}
-        onClose={() => setAlert(null)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-      >
-        {alert && (
-          <Alert severity={alert.severity} onClose={() => setAlert(null)} sx={{ width: "100%" }}>
-            {alert.message}
-          </Alert>
-        )}
-      </Snackbar>
     </Box>
   );
 }
