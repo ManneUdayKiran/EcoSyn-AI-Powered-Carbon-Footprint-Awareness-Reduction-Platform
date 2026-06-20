@@ -9,7 +9,6 @@ import {
   LinearProgress,
   Alert,
   CircularProgress,
-  useTheme,
 } from "@mui/material";
 import { motion, AnimatePresence } from "framer-motion";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
@@ -18,7 +17,6 @@ import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import { api, extractErrorMessage } from "../api/client";
 
 export default function Onboarding({ onOnboardComplete }) {
-  const theme = useTheme();
   const [step, setStep] = useState(1);
   const [travel, setTravel] = useState("");
   const [diet, setDiet] = useState("");

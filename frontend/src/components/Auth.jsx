@@ -13,7 +13,6 @@ import {
   Alert,
   Fade,
   CircularProgress,
-  useTheme,
 } from "@mui/material";
 import EmailRoundedIcon from "@mui/icons-material/EmailRounded";
 import LockRoundedIcon from "@mui/icons-material/LockRounded";
@@ -23,7 +22,6 @@ import VisibilityOffRoundedIcon from "@mui/icons-material/VisibilityOffRounded";
 import { api, extractErrorMessage } from "../api/client";
 
 export default function Auth({ onAuthSuccess }) {
-  const theme = useTheme();
   const [tab, setTab] = useState(0); // 0: Login, 1: Signup
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -303,6 +301,8 @@ export default function Auth({ onAuthSuccess }) {
                     endAdornment: (
                       <InputAdornment position="end">
                         <IconButton
+                          aria-label={showPassword ? "Hide password" : "Show password"}
+                          aria-pressed={showPassword}
                           onClick={() => setShowPassword(!showPassword)}
                           edge="end"
                           sx={{ color: "text.secondary" }}

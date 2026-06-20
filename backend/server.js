@@ -76,7 +76,22 @@ app.use((req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-const upload = multer({ storage: multer.memoryStorage() });
+const allowedUploadTypes = new Set([
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "image/webp"
+]);
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+  fileFilter: (_req, file, callback) => {
+    if (!allowedUploadTypes.has(file.mimetype)) {
+      return callback(new multer.MulterError("LIMIT_UNEXPECTED_FILE"));
+    }
+    callback(null, true);
+  }
+});
 
 const hasGroqKey = Boolean(process.env.GROQ_API_KEY);
 const groqClient = hasGroqKey ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : null;
@@ -596,10 +611,6 @@ async function recalculateProfileMetrics(userId) {
       recCO2 += Number(rec.co2Reduction || 0);
       recCost += Number(rec.costSavings || 0);
       recPoints += Number(rec.points || 0);
-    } else {
-      recCO2 += 10;
-      recCost += 15;
-      recPoints += 50;
     }
   });
 
@@ -671,7 +682,10 @@ async function recalculateProfileMetrics(userId) {
   return profile;
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || "ecosyn-secret-key-12345";
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET || Buffer.byteLength(JWT_SECRET) < 32) {
+  throw new Error("JWT_SECRET must be configured with at least 32 bytes.");
+}
 
 function generateToken(user) {
   const payload = JSON.stringify({ 
@@ -691,7 +705,12 @@ function verifyToken(token) {
     const payload = Buffer.from(parts[0], "base64").toString("utf-8");
     const signature = parts[1];
     const expectedSignature = crypto.createHmac("sha256", JWT_SECRET).update(payload).digest("hex");
-    if (signature !== expectedSignature) return null;
+    if (!/^[a-f0-9]{64}$/i.test(signature)) return null;
+    const actualBuffer = Buffer.from(signature, "hex");
+    const expectedBuffer = Buffer.from(expectedSignature, "hex");
+    if (actualBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(actualBuffer, expectedBuffer)) {
+      return null;
+    }
     const decoded = JSON.parse(payload);
     if (decoded.exp < Date.now()) {
       return null; // Expired token
@@ -853,6 +872,11 @@ app.get("/api/health", (req, res) => {
     database: isMongoConnected ? "mongodb" : "memory",
     realtimeClients: eventClients.size
   });
+});
+
+// 1b. Emission Factors Constants
+app.get("/api/emission-factors", (req, res) => {
+  res.json(EMISSION_FACTORS);
 });
 
 // 2. Fetch User Profile
@@ -1055,20 +1079,34 @@ app.get("/api/emission-factors", (req, res) => {
 // 5. Log Custom Activity Manually
 app.post("/api/activities/log", authMiddleware, async (req, res) => {
   const { category, description, amount, carbon, cost, date } = req.body;
-  if (!category || !description) {
-    return res.status(400).json({ error: "Category and description are required." });
-  }
+  const validCategories = new Set(["Transport", "Food", "Electricity", "Shopping", "Lifestyle"]);
+  const numCarbon = Number(carbon);
+  const numCost = cost === undefined ? 0 : Number(cost);
+  const dateValue = date || new Date().toISOString().split("T")[0];
 
-  const numCarbon = Number(carbon) || 2.5;
-  const numCost = Number(cost) || 0;
+  if (!validCategories.has(category)) {
+    return res.status(400).json({ error: "Invalid activity category." });
+  }
+  if (typeof description !== "string" || !description.trim() || description.length > 500) {
+    return res.status(400).json({ error: "Description must contain 1 to 500 characters." });
+  }
+  if (!Number.isFinite(numCarbon) || numCarbon < 0 || numCarbon > 100000) {
+    return res.status(400).json({ error: "Carbon must be a nonnegative number no greater than 100000." });
+  }
+  if (!Number.isFinite(numCost) || numCost < 0 || numCost > 1000000) {
+    return res.status(400).json({ error: "Cost must be a nonnegative number no greater than 1000000." });
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateValue) || Number.isNaN(Date.parse(`${dateValue}T00:00:00Z`))) {
+    return res.status(400).json({ error: "Date must use YYYY-MM-DD format." });
+  }
 
   const activity = {
     category,
-    description,
+    description: description.trim(),
     amount: amount || "1 occurrence",
     carbon: numCarbon,
     cost: numCost,
-    date: date || new Date().toISOString().split("T")[0]
+    date: dateValue
   };
 
   const userId = req.userId;
@@ -1151,6 +1189,11 @@ app.post("/api/profile/accept-recommendation", authMiddleware, async (req, res) 
 
   const userId = req.userId;
   const profile = await getProfile(userId);
+  const recommendations = await getRecommendations(userId);
+  const rec = recommendations.find(r => r.id === recommendationId);
+  if (!rec) {
+    return res.status(404).json({ error: "Recommendation not found." });
+  }
   if (profile.acceptedRecommendations.includes(recommendationId)) {
     return res.json({ status: "already_accepted", profile });
   }
@@ -1158,9 +1201,7 @@ app.post("/api/profile/accept-recommendation", authMiddleware, async (req, res) 
   profile.acceptedRecommendations.push(recommendationId);
   await saveProfile(userId, profile);
 
-  const recommendations = await getRecommendations(userId);
-  const rec = recommendations.find(r => r.id === recommendationId);
-  const pts = rec ? rec.points : 50;
+  const pts = rec.points;
 
   await logAction(userId, "ACCEPT_RECOMMENDATION", { recommendationId, title: rec?.title });
   const updatedProfile = await recalculateProfileMetrics(userId);
@@ -1278,7 +1319,10 @@ app.get("/api/leaderboard", authMiddleware, async (req, res) => {
 
 // 11. AI Smart Receipt & Bill Scanner (OCR Estimation)
 app.post("/api/scan", authMiddleware, upload.single("file"), async (req, res) => {
-  const filename = req.file ? req.file.originalname : "electricity_bill.pdf";
+  if (!req.file) {
+    return res.status(400).json({ error: "A receipt, bill, or image file is required." });
+  }
+  const filename = req.file.originalname;
   let extractedText = "Mock receipt content";
   const userId = req.userId;
 
@@ -1449,7 +1493,13 @@ Return ONLY a valid JSON object matching this schema:
 
 // 12. AI Vision-Based Carbon Assessment (Image Classify & Recommendation)
 app.post("/api/vision", authMiddleware, upload.single("file"), async (req, res) => {
-  const filename = req.file ? req.file.originalname : "appliance.jpg";
+  if (!req.file) {
+    return res.status(400).json({ error: "An image file is required." });
+  }
+  if (!req.file.mimetype.startsWith("image/")) {
+    return res.status(415).json({ error: "Vision assessment accepts image files only." });
+  }
+  const filename = req.file.originalname;
   const { description = "Household object photo" } = req.body || {};
   const userId = req.userId;
 
@@ -1696,6 +1746,19 @@ Use user statistics in your replies:
       reply: `[EcoCoach Fallback Mode]\n\nHello, ${profile.studentName}! ${randomReply}\n\nYour current sustainability score is ${profile.sustainabilityScore}/100 and you have saved ${profile.savingsCO2} kg CO₂ so far. Keep it up!`
     });
   }
+});
+
+app.use((error, _req, res, next) => {
+  if (error instanceof multer.MulterError) {
+    const status = error.code === "LIMIT_FILE_SIZE" ? 413 : 415;
+    return res.status(status).json({ error: error.message });
+  }
+  return next(error);
+});
+
+app.use((error, _req, res, _next) => {
+  console.error("Unhandled request error:", error);
+  res.status(500).json({ error: "An unexpected server error occurred." });
 });
 
 app.listen(PORT, () => {

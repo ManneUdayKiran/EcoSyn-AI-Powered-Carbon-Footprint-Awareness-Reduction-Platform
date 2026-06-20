@@ -264,7 +264,14 @@ export default function EcoChallenges() {
                 >
                   <ListItemAvatar sx={{ minWidth: 40 }}>
                     <Avatar sx={{ bgcolor: (theme) => theme.palette.mode === 'dark' ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.04)", fontSize: "0.95rem" }}>
-                      {getAvatarEmoji(idx)}
+                      <span role="img" aria-label={
+                        idx === 0 ? "First place gold medal" :
+                        idx === 1 ? "Second place silver medal" :
+                        idx === 2 ? "Third place bronze medal" :
+                        "User avatar icon"
+                      }>
+                        {getAvatarEmoji(idx)}
+                      </span>
                     </Avatar>
                   </ListItemAvatar>
                   <ListItemText

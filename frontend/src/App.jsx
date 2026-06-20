@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useContext } from "react";
+import { lazy, Suspense, useMemo, useState, useContext } from "react";
 import {
   BrowserRouter,
   Routes,
@@ -45,21 +45,22 @@ import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
 import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
 
-import Dashboard from "./components/Dashboard";
-import SmartScanner from "./components/SmartScanner";
-import CarbonTwin from "./components/CarbonTwin";
-import AICoach from "./components/AICoach";
-import EcoChallenges from "./components/EcoChallenges";
-import ActivityLog from "./components/ActivityLog";
 import Auth from "./components/Auth";
 import Onboarding from "./components/Onboarding";
-import { api, API_BASE_URL } from "./api/client";
+import { api } from "./api/client";
 import { motion, AnimatePresence } from "framer-motion";
 import { NotificationContext } from "./context/NotificationContext";
 import { ColorModeContext } from "./main";
 import { UserProvider, useUser, UserContext } from "./context/UserContext";
 
 const drawerWidth = 260;
+
+const Dashboard = lazy(() => import("./components/Dashboard"));
+const SmartScanner = lazy(() => import("./components/SmartScanner"));
+const CarbonTwin = lazy(() => import("./components/CarbonTwin"));
+const AICoach = lazy(() => import("./components/AICoach"));
+const EcoChallenges = lazy(() => import("./components/EcoChallenges"));
+const ActivityLog = lazy(() => import("./components/ActivityLog"));
 
 const navItems = [
   { label: "Dashboard", path: "/", icon: <SpaceDashboardRoundedIcon /> },
@@ -107,7 +108,7 @@ const SidebarContent = ({ onNavigate, profile, onLogout, onEditProfile }) => {
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
             <Avatar
               src={profile.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(profile.studentName || 'ecosyn')}`}
-              alt=""
+              alt="User Profile Avatar"
               sx={{
                 width: 48,
                 height: 48,
@@ -123,7 +124,7 @@ const SidebarContent = ({ onNavigate, profile, onLogout, onEditProfile }) => {
                 <Typography variant="body1" sx={{ color: "text.primary", fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", flexGrow: 1 }}>
                   {profile.studentName}
                 </Typography>
-                <IconButton size="small" onClick={onEditProfile} sx={{ color: "text.secondary", p: 0.5, "&:hover": { color: "#10b981" } }}>
+                <IconButton aria-label="Edit profile" size="small" onClick={onEditProfile} sx={{ color: "text.secondary", p: 0.5, "&:hover": { color: "#10b981" } }}>
                   <EditRoundedIcon sx={{ fontSize: "1.05rem" }} />
                 </IconButton>
               </Box>
@@ -259,6 +260,7 @@ const Shell = ({ profile, onLogout, onEditProfile }) => {
       >
         <Toolbar>
           <IconButton
+            aria-label="Open navigation menu"
             color="inherit"
             edge="start"
             onClick={toggleDrawer}
@@ -271,7 +273,7 @@ const Shell = ({ profile, onLogout, onEditProfile }) => {
           </Typography>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
             <Tooltip title={`Switch to ${theme.palette.mode === "dark" ? "Light" : "Dark"} Mode`}>
-              <IconButton onClick={colorMode.toggleColorMode} color="inherit" sx={{ color: "text.primary" }}>
+              <IconButton aria-label={`Switch to ${theme.palette.mode === "dark" ? "light" : "dark"} mode`} onClick={colorMode.toggleColorMode} color="inherit" sx={{ color: "text.primary" }}>
                 {theme.palette.mode === "dark" ? <LightModeRoundedIcon /> : <DarkModeRoundedIcon />}
               </IconButton>
             </Tooltip>
@@ -337,14 +339,16 @@ const Shell = ({ profile, onLogout, onEditProfile }) => {
             "radial-gradient(circle at 10% 20%, rgba(16, 185, 129, 0.06), transparent 35%), radial-gradient(circle at 90% 10%, rgba(6, 182, 212, 0.05), transparent 45%)",
         }}
       >
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/scan" element={<SmartScanner />} />
-          <Route path="/twin" element={<CarbonTwin />} />
-          <Route path="/coach" element={<AICoach />} />
-          <Route path="/challenges" element={<EcoChallenges />} />
-          <Route path="/activities" element={<ActivityLog />} />
-        </Routes>
+        <Suspense fallback={<Box role="status" aria-label="Loading page" sx={{ display: "flex", justifyContent: "center", py: 8 }}><CircularProgress /></Box>}>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/scan" element={<SmartScanner />} />
+            <Route path="/twin" element={<CarbonTwin />} />
+            <Route path="/coach" element={<AICoach />} />
+            <Route path="/challenges" element={<EcoChallenges />} />
+            <Route path="/activities" element={<ActivityLog />} />
+          </Routes>
+        </Suspense>
       </Box>
     </Box>
   );
@@ -371,7 +375,7 @@ export default function App() {
     try {
       const parsedUrl = new URL(url);
       return parsedUrl.searchParams.get("seed") || "";
-    } catch (e) {
+    } catch {
       const match = url.match(/[?&]seed=([^&#]*)/);
       return match ? decodeURIComponent(match[1]) : "";
     }
@@ -482,7 +486,6 @@ export default function App() {
     <NotificationContext.Provider value={{ showNotification }}>
       <UserProvider token={token} handleLogout={handleLogout}>
         <UserContextConsumer
-          token={token}
           handleLogout={handleLogout}
           editProfileOpen={editProfileOpen}
           setEditProfileOpen={setEditProfileOpen}
@@ -499,7 +502,6 @@ export default function App() {
 }
 
 function UserContextConsumer({
-  token,
   handleLogout,
   editProfileOpen,
   setEditProfileOpen,

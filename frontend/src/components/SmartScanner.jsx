@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   Box,
   Typography,
@@ -37,6 +37,12 @@ export default function SmartScanner() {
   const [visionResult, setVisionResult] = useState(null);
   const fileInputRef = useRef(null);
 
+  useEffect(() => () => {
+    if (previewUrl?.startsWith("blob:")) {
+      URL.revokeObjectURL(previewUrl);
+    }
+  }, [previewUrl]);
+
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
     resetScanner();
@@ -53,6 +59,17 @@ export default function SmartScanner() {
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
+      const allowedTypes = ["application/pdf", "image/png", "image/jpeg", "image/webp"];
+      if (!allowedTypes.includes(selectedFile.type)) {
+        showNotification("Choose a PDF, PNG, JPEG, or WebP file.", "error");
+        e.target.value = "";
+        return;
+      }
+      if (selectedFile.size > 5 * 1024 * 1024) {
+        showNotification("Choose a file smaller than 5 MB.", "error");
+        e.target.value = "";
+        return;
+      }
       setFile(selectedFile);
       // Create preview
       if (selectedFile.type.startsWith("image/")) {
@@ -266,6 +283,7 @@ export default function SmartScanner() {
                         />
                       )}
                       <IconButton
+                        aria-label="Remove selected file"
                         size="small"
                         onClick={(e) => {
                           e.stopPropagation();

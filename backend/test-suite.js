@@ -6,7 +6,7 @@ import crypto from "crypto";
 const PORT = 5099;
 const baseUrl = `http://localhost:${PORT}`;
 
-const JWT_SECRET = process.env.JWT_SECRET || "ecosyn-secret-key-12345";
+const JWT_SECRET = "ecosyn-test-secret-key-with-at-least-32-bytes";
 
 function generateExpiredToken(userId, email) {
   const payload = JSON.stringify({ 
@@ -26,6 +26,7 @@ const startTestServer = () => {
       env: {
         ...process.env,
         PORT: PORT.toString(),
+        JWT_SECRET,
         MONGODB_URI: "mongodb://invalid-uri-fallback-to-memory", // force memory database fallback
         GROQ_API_KEY: "" // force simulated responses
       }
@@ -270,9 +271,12 @@ test("EcoSyn Core Backend Integration Tests", async (t) => {
 
   await t.test("13. AI Route Fallbacks - OCR, Vision & Chat resilience", async () => {
     // /api/scan fallback check
+    const scanForm = new FormData();
+    scanForm.append("file", new Blob(["mock"], { type: "application/pdf" }), "electricity_bill.pdf");
     const scanRes = await fetch(`${baseUrl}/api/scan`, {
       method: "POST",
-      headers: { "Authorization": `Bearer ${testUserToken}` }
+      headers: { "Authorization": `Bearer ${testUserToken}` },
+      body: scanForm
     });
     assert.strictEqual(scanRes.status, 200);
     const scanData = await scanRes.json();
@@ -280,9 +284,12 @@ test("EcoSyn Core Backend Integration Tests", async (t) => {
     assert.ok(scanData.totalCarbon > 0);
 
     // /api/vision fallback check
+    const visionForm = new FormData();
+    visionForm.append("file", new Blob(["mock"], { type: "image/jpeg" }), "refrigerator.jpg");
     const visionRes = await fetch(`${baseUrl}/api/vision`, {
       method: "POST",
-      headers: { "Authorization": `Bearer ${testUserToken}` }
+      headers: { "Authorization": `Bearer ${testUserToken}` },
+      body: visionForm
     });
     assert.strictEqual(visionRes.status, 200);
     const visionData = await visionRes.json();
@@ -303,7 +310,40 @@ test("EcoSyn Core Backend Integration Tests", async (t) => {
     assert.ok(chatData.reply.includes("Fallback Mode"));
   });
 
-  await t.test("14. Global Rate Limiter - 429 Block", async () => {
+  await t.test("14. Upload validation rejects missing and unsupported files", async () => {
+    const missing = await fetch(`${baseUrl}/api/vision`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${testUserToken}` }
+    });
+    assert.strictEqual(missing.status, 400);
+
+    const unsupportedForm = new FormData();
+    unsupportedForm.append("file", new Blob(["text"], { type: "text/plain" }), "payload.txt");
+    const unsupported = await fetch(`${baseUrl}/api/vision`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${testUserToken}` },
+      body: unsupportedForm
+    });
+    assert.strictEqual(unsupported.status, 415);
+  });
+
+  await t.test("15. Activity and recommendation validation rejects corrupt input", async () => {
+    const activity = await fetch(`${baseUrl}/api/activities/log`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${testUserToken}` },
+      body: JSON.stringify({ category: "Transport", description: "Invalid", carbon: -1 })
+    });
+    assert.strictEqual(activity.status, 400);
+
+    const recommendation = await fetch(`${baseUrl}/api/profile/accept-recommendation`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${testUserToken}` },
+      body: JSON.stringify({ recommendationId: "does-not-exist" })
+    });
+    assert.strictEqual(recommendation.status, 404);
+  });
+
+  await t.test("16. Global Rate Limiter - 429 Block", async () => {
     const requests = [];
     // The limit is 150 requests per minute per IP. We send 155 requests concurrently to trigger 429.
     for (let i = 0; i < 155; i++) {

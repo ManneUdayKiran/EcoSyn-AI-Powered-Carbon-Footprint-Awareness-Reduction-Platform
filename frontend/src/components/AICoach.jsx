@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Box,
   TextField,
@@ -54,7 +54,7 @@ import { useUser } from "../context/UserContext";
 
 export default function AICoach() {
   const { showNotification } = useNotification();
-  const { profile, setProfile } = useUser();
+  const { profile } = useUser();
   const [messages, setMessages] = useState([initialMessage]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -65,7 +65,7 @@ export default function AICoach() {
   const bottomRef = useRef(null);
   const recognitionRef = useRef(null);
 
-  const fetchCoachData = async () => {
+  const fetchCoachData = useCallback(async () => {
     try {
       const recsRes = await api.get("/api/recommendations");
       setRecommendations(recsRes.data);
@@ -75,11 +75,11 @@ export default function AICoach() {
     } catch (e) {
       console.error("Error loading coach state", e);
     }
-  };
+  }, [profile]);
 
   useEffect(() => {
     fetchCoachData();
-  }, [profile]);
+  }, [fetchCoachData]);
 
   useEffect(() => {
     const SpeechRecognition =
@@ -257,6 +257,9 @@ export default function AICoach() {
 
             {/* Message Pane */}
             <Box
+              role="log"
+              aria-live="polite"
+              aria-relevant="additions"
               sx={{
                 flexGrow: 1,
                 overflowY: "auto",
@@ -293,7 +296,7 @@ export default function AICoach() {
                   {msg.role === "assistant" && (
                     <Box sx={{ display: "flex", gap: 1, mt: 0.5 }}>
                       <Tooltip title="Listen voice speech">
-                        <IconButton size="small" onClick={() => speak(msg.content)} sx={{ color: "text.secondary" }}>
+                        <IconButton aria-label="Read assistant response aloud" size="small" onClick={() => speak(msg.content)} sx={{ color: "text.secondary" }}>
                           <VolumeUpRoundedIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
@@ -343,7 +346,7 @@ export default function AICoach() {
                   disabled={loading}
                   sx={{ height: 48, borderRadius: 1, px: 3 }}
                 >
-                  {loading ? <CircularProgress size={20} color="inherit" /> : <SendRoundedIcon />}
+                  {loading ? <CircularProgress role="status" aria-label="EcoCoach is responding" size={20} color="inherit" /> : <SendRoundedIcon />}
                 </Button>
               </Stack>
             </Stack>
@@ -387,7 +390,7 @@ export default function AICoach() {
                         borderRadius: 1,
                         transition: "all 0.2s ease-in-out",
                         "&:hover": {
-                          borderColor: (theme) => isAccepted ? "rgba(16, 185, 129, 0.3)" : "rgba(16, 185, 129, 0.15)",
+                          borderColor: isAccepted ? "rgba(16, 185, 129, 0.3)" : "rgba(16, 185, 129, 0.15)",
                         },
                       }}
                     >
