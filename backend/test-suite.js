@@ -1,9 +1,22 @@
 import { spawn } from "child_process";
 import test from "node:test";
 import assert from "node:assert";
+import crypto from "crypto";
 
 const PORT = 5099;
 const baseUrl = `http://localhost:${PORT}`;
+
+const JWT_SECRET = process.env.JWT_SECRET || "ecosyn-secret-key-12345";
+
+function generateExpiredToken(userId, email) {
+  const payload = JSON.stringify({ 
+    userId, 
+    email, 
+    exp: Date.now() - 1000 // Expired 1 second ago
+  });
+  const signature = crypto.createHmac("sha256", JWT_SECRET).update(payload).digest("hex");
+  return Buffer.from(payload).toString("base64") + "." + signature;
+}
 
 // Launch server in isolated test environment
 const startTestServer = () => {
@@ -193,5 +206,111 @@ test("EcoSyn Core Backend Integration Tests", async (t) => {
     assert.strictEqual(result.status, "success");
     assert.strictEqual(result.profile.studentName, updatedName);
     assert.strictEqual(result.profile.avatar, "https://api.dicebear.com/7.x/adventurer/svg?seed=green-hero");
+  });
+
+  await t.test("9. Token Verification - Expired token rejection", async () => {
+    const expiredToken = generateExpiredToken("some-user-id", testEmail);
+    const res = await fetch(`${baseUrl}/api/profile`, {
+      headers: {
+        "Authorization": `Bearer ${expiredToken}`
+      }
+    });
+    assert.strictEqual(res.status, 401);
+    const data = await res.json();
+    assert.ok(data.error.includes("expired"));
+  });
+
+  await t.test("10. Token Verification - Signature tampering rejection", async () => {
+    // Tamper the signature part of the token
+    const tamperedToken = testUserToken.slice(0, -1) + (testUserToken.endsWith("z") ? "a" : "z");
+    const res = await fetch(`${baseUrl}/api/profile`, {
+      headers: {
+        "Authorization": `Bearer ${tamperedToken}`
+      }
+    });
+    assert.strictEqual(res.status, 401);
+    const data = await res.json();
+    assert.ok(data.error.includes("Invalid"));
+  });
+
+  await t.test("11. Auth - Memory login credential validation", async () => {
+    // Incorrect password
+    const res1 = await fetch(`${baseUrl}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: testEmail, password: "WrongPassword" })
+    });
+    assert.strictEqual(res1.status, 400);
+
+    // Non-existent user
+    const res2 = await fetch(`${baseUrl}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "notexists@ecosyn.edu", password: "Password123!" })
+    });
+    assert.strictEqual(res2.status, 400);
+  });
+
+  await t.test("12. GET /api/events - Real-time SSE authentication", async () => {
+    // Missing token
+    const res1 = await fetch(`${baseUrl}/api/events`);
+    assert.strictEqual(res1.status, 401);
+
+    // Invalid token
+    const res2 = await fetch(`${baseUrl}/api/events?token=invalid`);
+    assert.strictEqual(res2.status, 401);
+
+    // Valid token
+    const controller = new AbortController();
+    const res3 = await fetch(`${baseUrl}/api/events?token=${testUserToken}`, { signal: controller.signal });
+    assert.strictEqual(res3.status, 200);
+    assert.ok(res3.headers.get("content-type").includes("text/event-stream"));
+    controller.abort();
+  });
+
+  await t.test("13. AI Route Fallbacks - OCR, Vision & Chat resilience", async () => {
+    // /api/scan fallback check
+    const scanRes = await fetch(`${baseUrl}/api/scan`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${testUserToken}` }
+    });
+    assert.strictEqual(scanRes.status, 200);
+    const scanData = await scanRes.json();
+    assert.strictEqual(scanData.category, "Electricity");
+    assert.ok(scanData.totalCarbon > 0);
+
+    // /api/vision fallback check
+    const visionRes = await fetch(`${baseUrl}/api/vision`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${testUserToken}` }
+    });
+    assert.strictEqual(visionRes.status, 200);
+    const visionData = await visionRes.json();
+    assert.strictEqual(visionData.category, "Electricity");
+    assert.ok(visionData.alternatives.length > 0);
+
+    // /api/coach/chat fallback check
+    const chatRes = await fetch(`${baseUrl}/api/coach/chat`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${testUserToken}`
+      },
+      body: JSON.stringify({ message: "How to save carbon footprint?" })
+    });
+    assert.strictEqual(chatRes.status, 200);
+    const chatData = await chatRes.json();
+    assert.ok(chatData.reply.includes("Fallback Mode"));
+  });
+
+  await t.test("14. Global Rate Limiter - 429 Block", async () => {
+    const requests = [];
+    // The limit is 150 requests per minute per IP. We send 155 requests concurrently to trigger 429.
+    for (let i = 0; i < 155; i++) {
+      requests.push(fetch(`${baseUrl}/api/health`));
+    }
+    const responses = await Promise.all(requests);
+    const tooManyRequestsCount = responses.filter(r => r.status === 429).length;
+    assert.ok(tooManyRequestsCount > 0, "Rate limiter should trigger 429 status for excessive calls");
   });
 });

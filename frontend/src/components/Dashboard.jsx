@@ -35,7 +35,7 @@ import {
   Cell,
   Legend,
 } from "recharts";
-import { api } from "../api/client";
+import { useUser } from "../context/UserContext";
 
 const COLORS = {
   Electricity: "#10b981", // Emerald
@@ -47,40 +47,7 @@ const COLORS = {
 
 export default function Dashboard() {
   const theme = useTheme();
-  const [profile, setProfile] = useState(null);
-  const [activities, setActivities] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetchData = async () => {
-    try {
-      const profRes = await api.get("/api/profile");
-      const actRes = await api.get("/api/activities");
-      setProfile(profRes.data);
-      setActivities(actRes.data);
-    } catch (e) {
-      console.error("Error fetching dashboard data", e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-
-    // Refetch data when window is focused to maintain accuracy without persistent polling
-    const handleFocus = () => {
-      fetchData();
-    };
-    window.addEventListener("focus", handleFocus);
-
-    // Keep a slow 30-second background poll as a fallback
-    const interval = setInterval(fetchData, 30000);
-
-    return () => {
-      window.removeEventListener("focus", handleFocus);
-      clearInterval(interval);
-    };
-  }, []);
+  const { profile, activities, loading } = useUser();
 
   // Compute category breakdown from activity logs
   const pieData = useMemo(() => {
@@ -439,7 +406,38 @@ export default function Dashboard() {
                 sx={{ fontWeight: 600 }}
               />
             </Box>
-            <Box sx={{ height: 420, width: "100%" }}>
+            <Box sx={{ height: 420, width: "100%", position: "relative" }}>
+              {activities.length === 0 ? (
+                <Box
+                  sx={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    height: "100%",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: (theme) => theme.palette.mode === 'dark' ? "rgba(9, 18, 29, 0.45)" : "rgba(255, 255, 255, 0.45)",
+                    backdropFilter: "blur(4px)",
+                    borderRadius: 1.5,
+                    zIndex: 10,
+                    textAlign: "center",
+                    p: 3
+                  }}
+                >
+                  <Typography variant="body1" sx={{ fontWeight: 700, mb: 1 }}>
+                    Forecast Model Offline
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 380, mb: 2.5 }}>
+                    Log your first daily activity or scan a utility bill to sync your Carbon Twin and visualize emissions forecasts!
+                  </Typography>
+                  <Button variant="contained" color="primary" component={Link} to="/scan" size="small">
+                    Go to Scanner
+                  </Button>
+                </Box>
+              ) : null}
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
                   data={trendData}

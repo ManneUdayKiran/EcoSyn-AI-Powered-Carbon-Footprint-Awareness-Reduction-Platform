@@ -48,9 +48,11 @@ const COLORS = {
   Lifestyle: "#6366f1", // Indigo
 };
 
+import { useUser } from "../context/UserContext";
+
 export default function ActivityLog() {
   const { showNotification } = useNotification();
-  const [activities, setActivities] = useState([]);
+  const { activities, fetchActivities } = useUser();
   const [openDialog, setOpenDialog] = useState(false);
 
   // Form State
@@ -60,30 +62,6 @@ export default function ActivityLog() {
   const [cost, setCost] = useState("");
   const [carbon, setCarbon] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
-
-  const fetchActivities = async () => {
-    try {
-      const res = await api.get("/api/activities");
-      setActivities(res.data);
-    } catch (e) {
-      console.error("Error loading activities", e);
-    }
-  };
-
-  useEffect(() => {
-    fetchActivities();
-
-    const handleFocus = () => {
-      fetchActivities();
-    };
-    window.addEventListener("focus", handleFocus);
-
-    const interval = setInterval(fetchActivities, 30000);
-    return () => {
-      window.removeEventListener("focus", handleFocus);
-      clearInterval(interval);
-    };
-  }, []);
 
   const handleOpenDialog = () => {
     setCategory("Transport");

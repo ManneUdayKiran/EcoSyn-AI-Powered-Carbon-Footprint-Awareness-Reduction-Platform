@@ -35,15 +35,31 @@ export default function CarbonTwin() {
   const [scenarioName, setScenarioName] = useState("My lower-carbon month");
   const [scenarios, setScenarios] = useState([]);
 
+  const [factors, setFactors] = useState({
+    carKm: 0.26,
+    beefMeal: 6.2,
+    thermostatOffset: 6.5,
+    fastFashionItem: 7.2
+  });
+
   useEffect(() => {
     const fetchTwinData = async () => {
       try {
-        const [profileRes, scenariosRes] = await Promise.all([
+        const [profileRes, scenariosRes, factorsRes] = await Promise.all([
           api.get("/api/profile"),
           api.get("/api/twin/scenarios"),
+          api.get("/api/emission-factors").catch(() => null)
         ]);
         setProfile(profileRes.data);
         setScenarios(scenariosRes.data);
+        if (factorsRes && factorsRes.data) {
+          setFactors({
+            carKm: factorsRes.data.Transport?.carKm || 0.26,
+            beefMeal: factorsRes.data.Food?.beefMeal || 6.2,
+            thermostatOffset: 6.5,
+            fastFashionItem: factorsRes.data.Shopping?.fastFashionItem || 7.2
+          });
+        }
       } catch (e) {
         console.error("Error loading carbon twin data", e);
       }
@@ -52,18 +68,13 @@ export default function CarbonTwin() {
   }, []);
 
   // Compute live calculations
-  // Coefficients:
-  // - Car: 0.26 kg CO2 per km * 4.3 weeks
-  // - Meat: 6.2 kg CO2 per beef meal * 4.3 weeks
-  // - Thermostat: 120 kg CO2 base electricity - (offset * 6.5 kg)
-  // - Shopping: 7.2 kg CO2 per item
   const calculations = useMemo(() => {
-    const carFootprint = Math.round(carKm * 0.26 * 4.3);
-    const foodFootprint = Math.round(meatMeals * 6.2 * 4.3);
+    const carFootprint = Math.round(carKm * factors.carKm * 4.3);
+    const foodFootprint = Math.round(meatMeals * factors.beefMeal * 4.3);
     const electricityFootprint = Math.round(
-      Math.max(30, 120 - thermostat * 6.5),
+      Math.max(30, 120 - thermostat * factors.thermostatOffset),
     );
-    const shoppingFootprint = Math.round(shoppingItems * 7.2);
+    const shoppingFootprint = Math.round(shoppingItems * factors.fastFashionItem);
 
     const totalProjected =
       carFootprint + foodFootprint + electricityFootprint + shoppingFootprint;
@@ -86,7 +97,7 @@ export default function CarbonTwin() {
       carbonSaved,
       costSaved,
     };
-  }, [carKm, meatMeals, thermostat, shoppingItems, profile]);
+  }, [carKm, meatMeals, thermostat, shoppingItems, profile, factors]);
 
   // Determine twin health color based on carbon emissions
   const twinColor = useMemo(() => {
@@ -135,7 +146,7 @@ export default function CarbonTwin() {
         </Typography>
       </Box>
 
-      <Grid container spacing={3} sx={{ width: "100%" }}>
+      <Grid container spacing={2} sx={{ width: "100%" }}>
         {/* Left Input Sliders */}
         <Grid
           item
@@ -189,6 +200,7 @@ export default function CarbonTwin() {
                 max={200}
                 step={5}
                 valueLabelDisplay="auto"
+                aria-label="Weekly Commute Distance"
                 sx={{ color: "primary.main" }}
               />
               <Typography variant="caption" color="text.secondary">
@@ -227,6 +239,7 @@ export default function CarbonTwin() {
                 max={14}
                 step={1}
                 valueLabelDisplay="auto"
+                aria-label="Weekly Meat Meals"
                 sx={{ color: "#f59e0b" }}
               />
               <Typography variant="caption" color="text.secondary">
@@ -267,6 +280,7 @@ export default function CarbonTwin() {
                 max={5}
                 step={1}
                 valueLabelDisplay="auto"
+                aria-label="Thermostat Temperature Shift"
                 sx={{ color: "#06b6d4" }}
               />
               <Typography variant="caption" color="text.secondary">
@@ -306,6 +320,7 @@ export default function CarbonTwin() {
                 max={10}
                 step={1}
                 valueLabelDisplay="auto"
+                aria-label="Monthly Shopping Purchases"
                 sx={{ color: "#ec4899" }}
               />
               <Typography variant="caption" color="text.secondary">

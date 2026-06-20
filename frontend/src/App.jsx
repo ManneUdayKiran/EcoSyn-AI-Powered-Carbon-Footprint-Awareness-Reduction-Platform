@@ -57,6 +57,7 @@ import { api, API_BASE_URL } from "./api/client";
 import { motion, AnimatePresence } from "framer-motion";
 import { NotificationContext } from "./context/NotificationContext";
 import { ColorModeContext } from "./main";
+import { UserProvider, useUser, UserContext } from "./context/UserContext";
 
 const drawerWidth = 260;
 
@@ -106,7 +107,7 @@ const SidebarContent = ({ onNavigate, profile, onLogout, onEditProfile }) => {
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
             <Avatar
               src={profile.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(profile.studentName || 'ecosyn')}`}
-              alt={profile.studentName}
+              alt=""
               sx={{
                 width: 48,
                 height: 48,
@@ -351,7 +352,6 @@ const Shell = ({ profile, onLogout, onEditProfile }) => {
 
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem("ecosyn_token") || null);
-  const [profile, setProfile] = useState(null);
   const [notifications, setNotifications] = useState([]);
 
   const showNotification = (message, severity = "success") => {
@@ -377,47 +377,11 @@ export default function App() {
     }
   };
 
-  const handleOpenEditProfile = () => {
-    if (profile) {
-      setEditName(profile.studentName || "");
-      setEditSeed(getAvatarSeed(profile.avatar) || profile.studentName || "");
+  const handleOpenEditProfile = (currentProfile) => {
+    if (currentProfile) {
+      setEditName(currentProfile.studentName || "");
+      setEditSeed(getAvatarSeed(currentProfile.avatar) || currentProfile.studentName || "");
       setEditProfileOpen(true);
-    }
-  };
-
-  const handleSaveProfile = async () => {
-    if (!editName.trim()) {
-      showNotification("Name cannot be empty.", "warning");
-      return;
-    }
-
-    try {
-      const finalAvatar = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(editSeed.trim() || editName.trim())}`;
-      const res = await api.put("/api/profile", {
-        studentName: editName.trim(),
-        avatar: finalAvatar
-      });
-      if (res.data.status === "success") {
-        setProfile(res.data.profile);
-        showNotification("Profile updated successfully!", "success");
-        setEditProfileOpen(false);
-      }
-    } catch (err) {
-      console.error("Profile update failed", err);
-      showNotification("Failed to update profile info.", "error");
-    }
-  };
-
-  const fetchProfile = async () => {
-    try {
-      const res = await api.get("/api/profile");
-      setProfile(res.data);
-    } catch (error) {
-      console.error("Error loading profile", error);
-      if (error.response?.status === 401) {
-        // Token might have expired or is invalid, log out
-        handleLogout();
-      }
     }
   };
 
@@ -431,69 +395,7 @@ export default function App() {
     localStorage.removeItem("ecosyn_token");
     localStorage.removeItem("ecosyn_userId");
     setToken(null);
-    setProfile(null);
   };
-
-  useEffect(() => {
-    if (!token) return;
-    fetchProfile();
-
-    // Refetch when the tab gains focus to keep user stats fresh with zero polling overhead
-    const handleFocus = () => {
-      fetchProfile();
-    };
-    window.addEventListener("focus", handleFocus);
-
-    // Keep a slow 30-second background poll as a fallback for SSE drops
-    const interval = setInterval(fetchProfile, 30000);
-
-    return () => {
-      window.removeEventListener("focus", handleFocus);
-      clearInterval(interval);
-    };
-  }, [token]);
-
-  useEffect(() => {
-    if (!token) return undefined;
-    if (!window.EventSource) return undefined;
-
-    const streamUrl = `${API_BASE_URL.replace(/\/$/, "")}/api/events`;
-    const stream = new EventSource(streamUrl);
-
-    stream.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === "connected") return;
-
-        // Skip events that are for a different user
-        const currentUserId = localStorage.getItem("ecosyn_userId");
-        if (data.payload?.userId && data.payload.userId !== currentUserId) {
-          return;
-        }
-
-        if (data.payload?.profile) {
-          setProfile(data.payload.profile);
-        } else {
-          fetchProfile();
-        }
-
-        if (data.payload?.message) {
-          const sev = data.type.includes("reset") ? "info" : "success";
-          showNotification(data.payload.message, sev);
-        }
-      } catch (error) {
-        console.error("Realtime event parsing failed", error);
-      }
-    };
-
-    stream.onerror = () => {
-      stream.close();
-    };
-
-    return () => stream.close();
-  }, [token]);
-
-
 
   const renderNotifications = () => (
     <Box
@@ -576,30 +478,87 @@ export default function App() {
     );
   }
 
+  return (
+    <NotificationContext.Provider value={{ showNotification }}>
+      <UserProvider token={token} handleLogout={handleLogout}>
+        <UserContextConsumer
+          token={token}
+          handleLogout={handleLogout}
+          editProfileOpen={editProfileOpen}
+          setEditProfileOpen={setEditProfileOpen}
+          editName={editName}
+          setEditName={setEditName}
+          editSeed={editSeed}
+          setEditSeed={setEditSeed}
+          handleOpenEditProfile={handleOpenEditProfile}
+          renderNotifications={renderNotifications}
+        />
+      </UserProvider>
+    </NotificationContext.Provider>
+  );
+}
+
+function UserContextConsumer({
+  token,
+  handleLogout,
+  editProfileOpen,
+  setEditProfileOpen,
+  editName,
+  setEditName,
+  editSeed,
+  setEditSeed,
+  handleOpenEditProfile,
+  renderNotifications
+}) {
+  const { profile, setProfile, loading } = useUser();
+  const { showNotification } = useContext(NotificationContext);
+
+  const handleSaveProfile = async () => {
+    if (!editName.trim()) {
+      showNotification("Name cannot be empty.", "warning");
+      return;
+    }
+
+    try {
+      const finalAvatar = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(editSeed.trim() || editName.trim())}`;
+      const res = await api.put("/api/profile", {
+        studentName: editName.trim(),
+        avatar: finalAvatar
+      });
+      if (res.data.status === "success") {
+        setProfile(res.data.profile);
+        showNotification("Profile updated successfully!", "success");
+        setEditProfileOpen(false);
+      }
+    } catch (err) {
+      console.error("Profile update failed", err);
+      showNotification("Failed to update profile info.", "error");
+    }
+  };
+
+  if (loading && !profile) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh", backgroundColor: "background.default" }}>
+        <CircularProgress color="primary" />
+      </Box>
+    );
+  }
+
   if (!profile) {
     return (
-      <NotificationContext.Provider value={{ showNotification }}>
-        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh", backgroundColor: "background.default" }}>
-          <CircularProgress color="primary" />
-        </Box>
-        {renderNotifications()}
-      </NotificationContext.Provider>
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh", backgroundColor: "background.default" }}>
+        <CircularProgress color="primary" />
+      </Box>
     );
   }
 
   if (profile.isOnboarded === false) {
-    return (
-      <NotificationContext.Provider value={{ showNotification }}>
-        <Onboarding onOnboardComplete={fetchProfile} />
-        {renderNotifications()}
-      </NotificationContext.Provider>
-    );
+    return <Onboarding onOnboardComplete={() => window.location.reload()} />;
   }
 
   return (
-    <NotificationContext.Provider value={{ showNotification }}>
-      <BrowserRouter>
-        <Shell profile={profile} onLogout={handleLogout} onEditProfile={handleOpenEditProfile} />
+    <BrowserRouter>
+      <Shell profile={profile} onLogout={handleLogout} onEditProfile={() => handleOpenEditProfile(profile)} />
 
       {/* Edit Profile Dialog */}
       <Dialog
@@ -699,6 +658,5 @@ export default function App() {
 
       {renderNotifications()}
     </BrowserRouter>
-    </NotificationContext.Provider>
   );
 }

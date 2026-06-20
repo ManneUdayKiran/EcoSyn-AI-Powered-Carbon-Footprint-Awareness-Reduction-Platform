@@ -27,10 +27,11 @@ import StarsRoundedIcon from "@mui/icons-material/StarsRounded";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import { api } from "../api/client";
 import { useNotification } from "../context/NotificationContext";
+import { useUser } from "../context/UserContext";
 
 export default function EcoChallenges() {
   const { showNotification } = useNotification();
-  const [profile, setProfile] = useState(null);
+  const { profile, setProfile } = useUser();
   const [challenges, setChallenges] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
   const [suggested, setSuggested] = useState(null);
@@ -39,11 +40,9 @@ export default function EcoChallenges() {
 
   const fetchData = async () => {
     try {
-      const profRes = await api.get("/api/profile");
       const chalRes = await api.get("/api/challenges");
       const leadRes = await api.get("/api/leaderboard");
       const suggestedRes = await api.get("/api/challenges/suggested");
-      setProfile(profRes.data);
       setChallenges(chalRes.data);
       setLeaderboard(leadRes.data);
       setSuggested(suggestedRes.data);
@@ -53,12 +52,7 @@ export default function EcoChallenges() {
   };
 
   useEffect(() => {
-    const initialLoad = setTimeout(fetchData, 0);
-    const interval = setInterval(fetchData, 30000);
-    return () => {
-      clearTimeout(initialLoad);
-      clearInterval(interval);
-    };
+    fetchData();
   }, []);
 
   const handleCheckIn = async (challengeId) => {

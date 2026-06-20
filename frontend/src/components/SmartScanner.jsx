@@ -223,6 +223,8 @@ export default function SmartScanner() {
                   <input
                     type="file"
                     ref={fileInputRef}
+                    id="smart-scanner-file-input"
+                    aria-label="Choose bill or receipt file to scan"
                     style={{ display: "none" }}
                     onChange={handleFileChange}
                     accept={activeTab === 0 ? "application/pdf,image/*" : "image/*"}

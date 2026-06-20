@@ -50,8 +50,11 @@ const COLORS = {
   Lifestyle: "#6366f1",
 };
 
+import { useUser } from "../context/UserContext";
+
 export default function AICoach() {
   const { showNotification } = useNotification();
+  const { profile, setProfile } = useUser();
   const [messages, setMessages] = useState([initialMessage]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -66,8 +69,9 @@ export default function AICoach() {
     try {
       const recsRes = await api.get("/api/recommendations");
       setRecommendations(recsRes.data);
-      const profRes = await api.get("/api/profile");
-      setAcceptedIds(profRes.data.acceptedRecommendations || []);
+      if (profile) {
+        setAcceptedIds(profile.acceptedRecommendations || []);
+      }
     } catch (e) {
       console.error("Error loading coach state", e);
     }
@@ -75,9 +79,7 @@ export default function AICoach() {
 
   useEffect(() => {
     fetchCoachData();
-    const interval = setInterval(fetchCoachData, 30000);
-    return () => clearInterval(interval);
-  }, []);
+  }, [profile]);
 
   useEffect(() => {
     const SpeechRecognition =
