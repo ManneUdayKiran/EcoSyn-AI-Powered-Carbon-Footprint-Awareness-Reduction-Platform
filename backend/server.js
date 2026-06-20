@@ -11,7 +11,22 @@ import crypto from "crypto";
 dotenv.config();
 
 const app = express();
-app.use(cors());
+
+const allowedOrigins = process.env.CLIENT_URL
+  ? process.env.CLIENT_URL.split(",").map(url => url.trim())
+  : ["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes("*")) {
+      return callback(null, true);
+    }
+    return callback(new Error("CORS policy blocked this request."), false);
+  },
+  credentials: true
+}));
+
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
